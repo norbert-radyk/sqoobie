@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ***************************************************************************** */
-package org.squeryl;
+package org.squeryl
 
 import dsl.ast._
 import dsl.{CompositeKey, QueryDsl}
 import internals._
-import java.sql.{Statement}
+import java.sql.Statement
 import logging.StackMarker
 import collection.mutable.ArrayBuffer
 
@@ -42,11 +42,10 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
     val st =
       (_dbAdapter.supportsAutoIncrementInColumnDeclaration, posoMetaData.primaryKey) match {
         case (true, a:Any) => sess.connection.prepareStatement(sw.statement, Statement.RETURN_GENERATED_KEYS)
-        case (false, Some(Left(pk:FieldMetaData))) => {
+        case (false, Some(Left(pk:FieldMetaData))) =>
           val autoIncPk = new Array[String](1)
           autoIncPk(0) = pk.columnName
           sess.connection.prepareStatement(sw.statement, autoIncPk)
-        }
         case a:Any => sess.connection.prepareStatement(sw.statement)
       }
 
@@ -70,7 +69,7 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
             rs.close
           }
         }
-        case a:Any =>{}
+        case a:Any =>
       }
     }
     finally {
@@ -87,7 +86,7 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
 //  def insert(t: Query[T]) = org.squeryl.internals.Utils.throwError("not implemented")
 
   def insert(e: Iterable[T]):Unit =
-    _batchedUpdateOrInsert(e, t => posoMetaData.fieldsMetaData.filter(fmd => !fmd.isAutoIncremented && fmd.isInsertable), true, false)
+    _batchedUpdateOrInsert(e, t => posoMetaData.fieldsMetaData.filter(fmd => !fmd.isAutoIncremented && fmd.isInsertable), isInsert = true, checkOCC = false)
 
   /**
    * isInsert if statement is insert otherwise update
@@ -176,14 +175,14 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
    * does not result in 1 row
    */
   def forceUpdate[K](o: T)(implicit ked: KeyedEntityDef[T,_]) =
-    _update(o, false, ked)
+    _update(o, checkOCC = false, ked)
 
   /**
    * @throws SquerylSQLException When a database error occurs or the update
    * does not result in 1 row
    */
   def update(o: T)(implicit ked: KeyedEntityDef[T,_]):Unit =
-    _update(o, true, ked)
+    _update(o, checkOCC = true, ked)
 
   def update(o: Iterable[T])(implicit ked: KeyedEntityDef[T,_]):Unit =
     _update(o, ked.isOptimistic)
@@ -242,7 +241,7 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
       ).flatten
     }
 
-    _batchedUpdateOrInsert(e, buildFmds _, false, checkOCC)
+    _batchedUpdateOrInsert(e, buildFmds _, isInsert = false, checkOCC = checkOCC)
   }
 
   def update(s: T =>UpdateStatement):Int = {
@@ -256,7 +255,7 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
     var idGen = 0
     us.visitDescendants((node,parent,i) => {
 
-      if(node.parent == None)
+      if(node.parent.isEmpty)
         node.parent = parent
 
       node match {
@@ -293,7 +292,7 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
     import dsl._
     val q = from(this)(a => dsl.where {
       FieldReferenceLinker.createEqualityExpressionWithLastAccessedFieldReferenceAndConstant(ked.getId(a), k, toCanLookup(k))
-    } select(a))
+    } select a)
 
     lazy val z = q.headOption
 
@@ -307,7 +306,7 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
       z.map(x => _callbacks.afterDelete(x.asInstanceOf[AnyRef]))
     }
 
-    if(Session.currentSessionOption map { ses => ses.databaseAdapter.verifyDeleteByPK } getOrElse true)
+    if(Session.currentSessionOption forall { ses => ses.databaseAdapter.verifyDeleteByPK })
       assert(deleteCount <= 1, "Query :\n" + q.dumpAst + "\nshould have deleted at most 1 row but has deleted " + deleteCount)
     deleteCount > 0
   }

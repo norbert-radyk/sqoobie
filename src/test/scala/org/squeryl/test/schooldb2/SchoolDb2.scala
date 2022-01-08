@@ -3,7 +3,7 @@ package org.squeryl.test.schooldb2
 import org.squeryl.test.PrimitiveTypeModeForTests._
 import org.squeryl._
 import dsl.{OneToMany, CompositeKey2}
-import java.sql.{Savepoint}
+import java.sql.Savepoint
 
 import org.squeryl.framework._
 
@@ -248,7 +248,7 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
     val comment = Comment("A single comment")
     entry.comments.associate(comment)
 
-    from(entry.comments)(c => where(c.id === comment.id) select(c))
+    from(entry.comments)(c => where(c.id === comment.id) select c)
   }
 
   test("UpdateWithCompositePK"){
@@ -375,7 +375,7 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
 
   private def _existsAndEquals(oca: Option[CourseAssignment], ca: CourseAssignment) = {
 
-    if(oca == None)
+    if(oca.isEmpty)
       org.squeryl.internals.Utils.throwError("query returned no rows")
 
     ca.id shouldBe oca.get.id
@@ -404,10 +404,9 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
       physicsCourse.professors.associate(professeurTournesol)
     }
     catch {
-      case e:RuntimeException => {
+      case e:RuntimeException =>
         exceptionThrown = true
         sp.foreach(s.connection.rollback(_))
-      }
     }
 
     if(! exceptionThrown)
@@ -475,7 +474,7 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
         select(p)
       ).toList
       
-    assert(belowAvg.size == 0)    
+    assert(belowAvg.isEmpty)
   }
   
   test ("#73 relations with Option[] on one side of the equality expression blow up") {

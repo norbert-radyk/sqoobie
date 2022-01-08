@@ -39,7 +39,7 @@ class DB2Adapter extends DatabaseAdapter {
     val sw = new StatementWriter(false, this)
     sw.write("create sequence ", sequenceName(t), " start with 1 increment by 1 nomaxvalue")
 
-    if(printSinkWhenWriteOnlyMode == None) {
+    if(printSinkWhenWriteOnlyMode.isEmpty) {
       val st = Session.currentSession.connection.createStatement
       st.execute(sw.statement)
     }
@@ -59,7 +59,7 @@ class DB2Adapter extends DatabaseAdapter {
 
     val autoIncPK = t.posoMetaData.fieldsMetaData.find(fmd => fmd.isAutoIncremented)
 
-    if (autoIncPK == None) {
+    if (autoIncPK.isEmpty) {
       super.writeInsert(o, t, sw)
       return
     }
@@ -69,16 +69,16 @@ class DB2Adapter extends DatabaseAdapter {
     val colNames = List(autoIncPK.get) ::: f.toList
     val colVals = List("next value for " + sequenceName(t)) ::: f.map(fmd => writeValue(o_, fmd, sw)).toList
 
-    sw.write("insert into ");
-    sw.write(t.prefixedName);
-    sw.write(" (");
-    sw.write(colNames.map(fmd => fmd.columnName).mkString(", "));
-    sw.write(") values ");
-    sw.write(colVals.mkString("(", ",", ")"));
+    sw.write("insert into ")
+    sw.write(t.prefixedName)
+    sw.write(" (")
+    sw.write(colNames.map(fmd => fmd.columnName).mkString(", "))
+    sw.write(") values ")
+    sw.write(colVals.mkString("(", ",", ")"))
   }
 
   override def writeConcatFunctionCall(fn: FunctionNode, sw: StatementWriter) =
-    sw.writeNodesWithSeparator(fn.args, " || ", false)
+    sw.writeNodesWithSeparator(fn.args, " || ", newLineAfterSeparator = false)
 
   override def isTableDoesNotExistException(e: SQLException) = {
     e.getErrorCode == -204
@@ -87,7 +87,7 @@ class DB2Adapter extends DatabaseAdapter {
   override def writePaginatedQueryDeclaration(page: () => Option[(Int, Int)], qen: QueryExpressionElements, sw: StatementWriter) = {}
 
   override def writeQuery(qen: QueryExpressionElements, sw: StatementWriter) =
-    if (qen.page == None)
+    if (qen.page.isEmpty)
       super.writeQuery(qen, sw)
     else {
       sw.write("select sq____1.* from (")

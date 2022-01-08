@@ -211,9 +211,9 @@ class Schema(implicit val fieldMapper: FieldMapper) {
   
     (unique, indexed) match {
       case (None,    None)                   => None
-      case (Some(_), None)                   => Some(_dbAdapter.writeIndexDeclaration(cols, None,    name, true))
-      case (None,    Some(Indexed(idxName))) => Some(_dbAdapter.writeIndexDeclaration(cols, idxName, name, false))
-      case (Some(_), Some(Indexed(idxName))) => Some(_dbAdapter.writeIndexDeclaration(cols, idxName, name, true))
+      case (Some(_), None)                   => Some(_dbAdapter.writeIndexDeclaration(cols, None,    name, isUnique = true))
+      case (None,    Some(Indexed(idxName))) => Some(_dbAdapter.writeIndexDeclaration(cols, idxName, name, isUnique = false))
+      case (Some(_), Some(Indexed(idxName))) => Some(_dbAdapter.writeIndexDeclaration(cols, idxName, name, isUnique = true))
     }
   }
   
@@ -427,7 +427,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
       ca.clearColumnAttributes
 
     for(ca <- colAss) ca match {
-      case dva:DefaultValueAssignment    => {
+      case dva:DefaultValueAssignment    =>
 
         dva.value match {
           case x: ConstantTypedExpression[_, _] =>
@@ -436,8 +436,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
             org.squeryl.internals.Utils.throwError("error in declaration of column "+ table.prefixedName + "." + dva.left.nameOfProperty + ", " +
                 "only constant expressions are supported in 'defaultsTo' declaration")
         }
-      }
-      case caa:ColumnAttributeAssignment => {
+      case caa:ColumnAttributeAssignment =>
 
         for(ca <- caa.columnAttributes)
           (caa.left._addColumnAttribute(ca))
@@ -445,16 +444,14 @@ class Schema(implicit val fieldMapper: FieldMapper) {
         //don't allow a KeyedEntity.id field to not have a uniqueness constraint :
         if(ca.isIdFieldOfKeyedEntityWithoutUniquenessConstraint)
           caa.left._addColumnAttribute(primaryKey)
-      }
-      case ctaa:ColumnGroupAttributeAssignment => {
+      case ctaa:ColumnGroupAttributeAssignment =>
 
         //don't allow a KeyedEntity.id field to not have a uniqueness constraint :
         if(ca.isIdFieldOfKeyedEntityWithoutUniquenessConstraint)
           ctaa.addAttribute(primaryKey)
 
         _addColumnGroupAttributeAssignment(ctaa)
-      }
-      
+
       case a:Any => org.squeryl.internals.Utils.throwError("did not match on " + a.getClass.getName)
     }
 
@@ -470,22 +467,21 @@ class Schema(implicit val fieldMapper: FieldMapper) {
     // Validate that autoIncremented is not used on other fields than KeyedEntity[A].id :
     // since it is not yet unsupported :
     for(ca <- colAss) ca match {
-      case cga:CompositeKeyAttributeAssignment => {}
-      case caa:ColumnAttributeAssignment => {
+      case cga:CompositeKeyAttributeAssignment =>
+      case caa:ColumnAttributeAssignment =>
         for(ca <- caa.columnAttributes if ca.isInstanceOf[AutoIncremented] && !(caa.left.isIdFieldOfKeyedEntity))
           org.squeryl.internals.Utils.throwError("Field " + caa.left.nameOfProperty + " of table " + table.name +
                 " is declared as autoIncremented, auto increment is currently only supported on KeyedEntity[A].id")
-      }
-      case dva:Any => {}
+      case dva:Any =>
     }
   }
 
   private def _addColumnGroupAttributeAssignment(cga: ColumnGroupAttributeAssignment) =
-    _columnGroupAttributeAssignments.append(cga);
-  
+    _columnGroupAttributeAssignments.append(cga)
+
   def defaultColumnAttributesForKeyedEntityId(typeOfIdField: Class[_]) =
     if(typeOfIdField.isAssignableFrom(classOf[java.lang.Long]) || typeOfIdField.isAssignableFrom(classOf[java.lang.Integer]))
-      Set(new PrimaryKey, new AutoIncremented(None))
+      Set(new PrimaryKey, AutoIncremented(None))
     else
       Set(new PrimaryKey)
   

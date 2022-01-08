@@ -42,7 +42,7 @@ class SrfViewExpressionNode[T](view: View[T], args: Iterable[ExpressionNode]) ex
   override def doWrite(sw: StatementWriter) = {
     sw.write(sw.quoteName(view.prefixedName))
     sw.write("(")
-    sw.writeNodesWithSeparator(args, ",", false)
+    sw.writeNodesWithSeparator(args, ",", newLineAfterSeparator = false)
     sw.write(")")
   }
 }

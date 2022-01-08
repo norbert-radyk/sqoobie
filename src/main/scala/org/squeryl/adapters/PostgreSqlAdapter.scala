@@ -44,7 +44,7 @@ class PostgreSqlAdapter extends DatabaseAdapter {
       val sw = new StatementWriter(false, this)
       sw.write("create sequence ", quoteName(fmd.sequenceName))
 
-      if(printSinkWhenWriteOnlyMode == None) {
+      if(printSinkWhenWriteOnlyMode.isEmpty) {
         val st = Session.currentSession.connection.createStatement
         st.execute(sw.statement)
       }
@@ -73,7 +73,7 @@ class PostgreSqlAdapter extends DatabaseAdapter {
     }
 
   override def writeConcatFunctionCall(fn: FunctionNode, sw: StatementWriter) =
-    sw.writeNodesWithSeparator(fn.args, " || ", false)
+    sw.writeNodesWithSeparator(fn.args, " || ", newLineAfterSeparator = false)
   
   override def writeInsert[T](o: T, t: Table[T], sw: StatementWriter): Unit = {
 
@@ -81,7 +81,7 @@ class PostgreSqlAdapter extends DatabaseAdapter {
 
     val autoIncPK = t.posoMetaData.fieldsMetaData.find(fmd => fmd.isAutoIncremented)
 
-    if(autoIncPK == None) {
+    if(autoIncPK.isEmpty) {
       super.writeInsert(o, t, sw)
       return
     }
@@ -91,12 +91,12 @@ class PostgreSqlAdapter extends DatabaseAdapter {
     val colNames = List(autoIncPK.get) ::: f.toList
     val colVals = List("nextval('" + quoteName(autoIncPK.get.sequenceName) + "')") ::: f.map(fmd => writeValue(o_, fmd, sw)).toList
 
-    sw.write("insert into ");
-    sw.write(quoteName(t.prefixedName));
-    sw.write(" (");
-    sw.write(colNames.map(fmd => quoteName(fmd.columnName)).mkString(", "));
-    sw.write(") values ");
-    sw.write(colVals.mkString("(",",",")"));
+    sw.write("insert into ")
+    sw.write(quoteName(t.prefixedName))
+    sw.write(" (")
+    sw.write(colNames.map(fmd => quoteName(fmd.columnName)).mkString(", "))
+    sw.write(") values ")
+    sw.write(colVals.mkString("(",",",")"))
   }
 
   /**
@@ -105,10 +105,9 @@ class PostgreSqlAdapter extends DatabaseAdapter {
    */
   override protected def writeValue(o: AnyRef, fmd: FieldMetaData, sw: StatementWriter): String =
     fmd.explicitDbTypeDeclaration match {
-      case Some(declaration) if fmd.explicitDbTypeCast => {
+      case Some(declaration) if fmd.explicitDbTypeCast =>
         val original = super.writeValue(o, fmd, sw)
         original + "::" + declaration
-      }
       case _ => super.writeValue(o, fmd, sw)
     }
 

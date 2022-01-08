@@ -2,7 +2,7 @@
 package org.squeryl.dsl.boilerplate
 
 import org.squeryl.internals.{OutMapper, FieldReferenceLinker}
-import org.squeryl.dsl.ast.{SelectElement}
+import org.squeryl.dsl.ast.SelectElement
 
 class SampleTuple
   (val outNodes: List[SelectElement], val outMappers: Array[OutMapper[_]])

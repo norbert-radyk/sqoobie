@@ -79,7 +79,7 @@ class Patient(var firstName: FirstName, var age: Option[Age], var weight: Option
 
   def this() = this(null, Some(new Age(1)),Some(new WeightInKilograms(1)))
 
-  var id: IntField = null
+  val id: IntField = null
 
   lazy val patientInfo = HospitalDb.patienttoPatientInfo.left(this)
 }

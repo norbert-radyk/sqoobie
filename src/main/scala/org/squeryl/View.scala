@@ -12,18 +12,18 @@ import java.sql.ResultSet
 class View[T] private [squeryl](_name: String, private[squeryl] val classOfT: Class[T], schema: Schema, _prefix: Option[String], val ked: Option[KeyedEntityDef[T,_]]) extends Queryable[T] {
 
   private [squeryl] lazy val _callbacks =
-    schema._callbacks.get(this).getOrElse(NoOpPosoLifecycleEventListener)
+    schema._callbacks.getOrElse(this, NoOpPosoLifecycleEventListener)
 
   def name = schema.tableNameFromClassName(_name)
 
   def prefix: Option[String] =
-    if(_prefix != None)
+    if(_prefix.isDefined)
       _prefix
     else
       schema.name
 
   def prefixedName =
-    if(prefix != None)
+    if(prefix.isDefined)
       prefix.get + "." + name
     else
       name
@@ -34,7 +34,7 @@ class View[T] private [squeryl](_name: String, private[squeryl] val classOfT: Cl
    * used for creating names for objects derived from a table, ex.: a sequence 
    */
   def prefixedPrefixedName(s: String) =
-    if(prefix != None)
+    if(prefix.isDefined)
       prefix.get + "." + s + name
     else
       s + name
@@ -64,7 +64,7 @@ class View[T] private [squeryl](_name: String, private[squeryl] val classOfT: Cl
     if(o == null)
       o = _createInstanceOfRowObject
     
-    resultSetMapper.map(o, resultSet);
+    resultSetMapper.map(o, resultSet)
     val t = o.asInstanceOf[T]
     _setPersisted(t)
     _callbacks.afterSelect(t.asInstanceOf[AnyRef]).asInstanceOf[T]

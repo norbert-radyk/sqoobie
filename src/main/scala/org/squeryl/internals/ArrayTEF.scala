@@ -30,7 +30,7 @@ abstract class ArrayTEF[P, TE] extends TypedExpressionFactory[Array[P], TE] with
     val s = Session.currentSession
     var rv : Array[P] = sample.take(0)
     try {
-      val obj = v.getArray();
+      val obj = v.getArray()
       rv = fromWrappedJDBCType(obj.asInstanceOf[Array[java.lang.Object]])
     } catch {
       case e: Exception => s.log("Cannot obtain array from JDBC: " + e.getMessage)

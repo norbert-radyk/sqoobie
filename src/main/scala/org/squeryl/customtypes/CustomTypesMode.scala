@@ -1,5 +1,5 @@
 
-package org.squeryl.customtypes;
+package org.squeryl.customtypes
 
 
 import java.util.{Date, UUID}

@@ -1,8 +1,8 @@
 
 package org.squeryl
 
-import dsl.ast.{LogicalBoolean}
-import dsl.{QueryDsl}
+import dsl.ast.LogicalBoolean
+import dsl.QueryDsl
 import internals.ResultSetMapper
 import java.sql.ResultSet
 

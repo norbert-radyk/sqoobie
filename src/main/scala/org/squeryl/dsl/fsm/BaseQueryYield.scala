@@ -17,7 +17,7 @@ class BaseQueryYield[G]
 
   protected def _createColumnToTupleMapper(origin: QueryExpressionNode[_], agregateArgs: List[TypedExpression[_,_]], offsetInResultSet:Int, isForGroup:Boolean) = {
 
-    var i = -1;
+    var i = -1
     val nodes = agregateArgs.map(e => { i += 1; new TupleSelectElement(origin, e, i, isForGroup)})
 
     var o = offsetInResultSet
@@ -27,7 +27,7 @@ class BaseQueryYield[G]
     var k:Int = 0
     agregateArgs.foreach(e => {
       e.mapper.index = o
-      o += 1;
+      o += 1
       mappers(k) = e.mapper
       k += 1
     })
@@ -113,7 +113,7 @@ class GroupQueryYield[K] (
 
   override def invokeYieldForAst(q: QueryExpressionNode[_], rsm: ResultSetMapper) = {
     val offset = 1
-    val (m, nodes) = _createColumnToTupleMapper(q, groupByClauseClosure(), offset, true)
+    val (m, nodes) = _createColumnToTupleMapper(q, groupByClauseClosure(), offset, isForGroup = true)
     rsm.groupKeysMapper = Some(m)
     val st = SampleTuple.create(nodes, m.outMappers).asInstanceOf[K]
     (nodes, new SampleGroup(st))
@@ -144,7 +144,7 @@ class MeasuresQueryYield[M](
 
   override def invokeYieldForAst(q: QueryExpressionNode[_], rsm: ResultSetMapper) = {
     val offset = 1
-    val (m, nodes) = _createColumnToTupleMapper(q, _computeByClauseClosure(), offset, false)
+    val (m, nodes) = _createColumnToTupleMapper(q, _computeByClauseClosure(), offset, isForGroup = false)
     rsm.groupMeasuresMapper = Some(m)
     val st = SampleTuple.create(nodes, m.outMappers).asInstanceOf[M]
     (nodes, new SampleMeasures(st))
@@ -172,7 +172,7 @@ extends BaseQueryYield[GroupWithMeasures[K,M]](_qe, null)
   }
 
   override def havingClause =
-    if(_having != None)
+    if(_having.isDefined)
       _having.map(c=>c())
     else
       super.havingClause
@@ -187,8 +187,8 @@ extends BaseQueryYield[GroupWithMeasures[K,M]](_qe, null)
 
     val offset = 1
 
-    val (km, knodes) = _createColumnToTupleMapper(q, _groupByClauseClosure(), offset, true)
-    val (mm, mnodes) = _createColumnToTupleMapper(q, _computeClauseClosure(), offset + knodes.size, false)
+    val (km, knodes) = _createColumnToTupleMapper(q, _groupByClauseClosure(), offset, isForGroup = true)
+    val (mm, mnodes) = _createColumnToTupleMapper(q, _computeClauseClosure(), offset + knodes.size, isForGroup = false)
 
     rsm.groupKeysMapper = Some(km)
     rsm.groupMeasuresMapper = Some(mm)

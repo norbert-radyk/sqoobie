@@ -12,7 +12,7 @@ trait QueryTester extends Matchers {
 
   var dumpAst = false
 
-  var doNotExecute = false
+  val doNotExecute = false
 
   def activateWorkbenchMode = {
     logQueries = true

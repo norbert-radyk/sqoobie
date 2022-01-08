@@ -66,7 +66,7 @@ trait BaseLifecycleEventPercursor {
       t,
       e,
       (ar:A) => {
-        f(ar.asInstanceOf[A])
+        f(ar)
         ar
       }
     )

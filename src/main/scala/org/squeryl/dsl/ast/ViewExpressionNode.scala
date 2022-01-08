@@ -25,7 +25,7 @@ class ViewExpressionNode[U](val view: View[U])
 
     val e = _selectElements.get(fmd)
     val n =
-      if(e != None)
+      if(e.isDefined)
         e.get
       else {
         val r = new FieldSelectElement(this, fmd, resultSetMapper)

@@ -1,7 +1,7 @@
 
 package org.squeryl.dsl.boilerplate
 
-import org.squeryl.dsl.{QueryYield}
+import org.squeryl.dsl.QueryYield
 import org.squeryl.dsl.fsm.BaseQueryYield
 import org.squeryl.dsl.ast.ExpressionNode
 

@@ -9,7 +9,7 @@ import org.squeryl.test.PrimitiveTypeModeForTests._
 object SubQueryTestSchema{
   class Entity(
     val name: String) extends KeyedEntity[UUID] {
-    var id: UUID = new UUID(0,0)
+    val id: UUID = new UUID(0, 0)
   }
 
   class EntityToTypeJoins(

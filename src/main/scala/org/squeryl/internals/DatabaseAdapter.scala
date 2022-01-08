@@ -1,11 +1,10 @@
 
 package org.squeryl.internals
 
-import org.squeryl.dsl.ast._
 import org.squeryl.dsl._
+import org.squeryl.dsl.ast._
 import org.squeryl._
-import dsl.CompositeKey
-import org.squeryl.{Schema, Session, Table}
+
 import java.sql._
 import java.util.UUID
 
@@ -29,7 +28,7 @@ trait DatabaseAdapter {
   implicit def zipIterable[T](i: Iterable[T]) = new ZipIterable(i)
 
   def writeQuery(qen: QueryExpressionElements, sw: StatementWriter):Unit =
-    writeQuery(qen, sw, false, None)
+    writeQuery(qen, sw, inverseOrderBy = false, None)
 
   /**
    * Should we verify that when we delete by primary key the JDBC driver reports
@@ -70,7 +69,7 @@ trait DatabaseAdapter {
     
     sw.nextLine
     sw.writeIndented {
-      sw.writeNodesWithSeparator(qen.selectList.filter(e => ! e.inhibited), ",", true)
+      sw.writeNodesWithSeparator(qen.selectList.filter(e => ! e.inhibited), ",", newLineAfterSeparator = true)
     }
     sw.nextLine
     sw.write("From")
@@ -123,7 +122,7 @@ trait DatabaseAdapter {
       sw.write("Group By")
       sw.nextLine
       sw.writeIndented {
-        sw.writeNodesWithSeparator(qen.groupByClause.filter(e => ! e.inhibited), ",", true)
+        sw.writeNodesWithSeparator(qen.groupByClause.filter(e => ! e.inhibited), ",", newLineAfterSeparator = true)
       }
       sw.pushPendingNextLine
     }
@@ -132,7 +131,7 @@ trait DatabaseAdapter {
       sw.write("Having")
       sw.nextLine
       sw.writeIndented {
-        sw.writeNodesWithSeparator(qen.havingClause.filter(e => ! e.inhibited), ",", true)
+        sw.writeNodesWithSeparator(qen.havingClause.filter(e => ! e.inhibited), ",", newLineAfterSeparator = true)
       }
       sw.pushPendingNextLine
     }
@@ -143,7 +142,7 @@ trait DatabaseAdapter {
       val ob0 = qen.orderByClause.filter(e => ! e.inhibited)
       val ob = if(inverseOrderBy) ob0.map(_.asInstanceOf[OrderByExpression].inverse) else ob0
       sw.writeIndented {
-        sw.writeNodesWithSeparator(ob, ",", true)
+        sw.writeNodesWithSeparator(ob, ",", newLineAfterSeparator = true)
       }
       sw.pushPendingNextLine
     }
@@ -301,7 +300,7 @@ trait DatabaseAdapter {
 
     sw.write("create table ")
     sw.write(quoteName(t.prefixedName))
-    sw.write(" (\n");
+    sw.write(" (\n")
     sw.writeIndented {
       sw.writeLinesWithSeparator(
         t.posoMetaData.fieldsMetaData.map(
@@ -314,7 +313,7 @@ trait DatabaseAdapter {
   }                     
      
   def fillParamsInto(params: Iterable[StatementParam], s: PreparedStatement): Unit = {
-    var i = 1;
+    var i = 1
     for(p <- params) {
       setParamInto(s, p, i)
       i += 1
@@ -439,14 +438,14 @@ trait DatabaseAdapter {
     val o_ = o.asInstanceOf[AnyRef]    
     val f = getInsertableFields(t.posoMetaData.fieldsMetaData)
 
-    sw.write("insert into ");
-    sw.write(quoteName(t.prefixedName));
-    sw.write(" (");
-    sw.write(f.map(fmd => quoteName(fmd.columnName)).mkString(", "));
-    sw.write(") values ");
+    sw.write("insert into ")
+    sw.write(quoteName(t.prefixedName))
+    sw.write(" (")
+    sw.write(f.map(fmd => quoteName(fmd.columnName)).mkString(", "))
+    sw.write(") values ")
     sw.write(
       f.map(fmd => writeValue(o_, fmd, sw)
-    ).mkString("(",",",")"));
+    ).mkString("(",",",")"))
   }
 
   /**
@@ -468,7 +467,7 @@ trait DatabaseAdapter {
     }
 
     v match {
-      case x: java.util.Date if (! v.isInstanceOf[java.sql.Date] && ! v.isInstanceOf[Timestamp]) =>
+      case x: java.util.Date if ! v.isInstanceOf[java.sql.Date] && ! v.isInstanceOf[Timestamp] =>
          v = new java.sql.Date(x.getTime)
       case x: scala.math.BigDecimal =>
          v = x.bigDecimal
@@ -526,7 +525,7 @@ trait DatabaseAdapter {
   def writeConcatFunctionCall(fn: FunctionNode, sw: StatementWriter) = {
     sw.write(fn.name)
     sw.write("(")
-    sw.writeNodesWithSeparator(fn.args, ",", false)
+    sw.writeNodesWithSeparator(fn.args, ",", newLineAfterSeparator = false)
     sw.write(")")    
   }
 
@@ -566,7 +565,7 @@ trait DatabaseAdapter {
           val ck = pkGetter.invoke(t0).asInstanceOf[CompositeKey]
 
           val fieldWhere = ck._fields map {
-            case fmd if(fmd.getNativeJdbcValue(o_) == null) =>
+            case fmd if fmd.getNativeJdbcValue(o_) == null =>
               quoteName(fmd.columnName) + " is null"
             case fmd =>
               quoteName(fmd.columnName) + " = " + writeValue(o_, fmd, sw)
@@ -591,7 +590,7 @@ trait DatabaseAdapter {
 
     sw.write("delete from ")
     sw.write(quoteName(t.prefixedName))
-    if(whereClause != None) {
+    if(whereClause.isDefined) {
       sw.nextLine
       sw.write("where")
       sw.nextLine
@@ -634,16 +633,14 @@ trait DatabaseAdapter {
       sw.write(" = ")
       val v = z.element
       col.explicitDbTypeDeclaration match {
-        case Some(dbType) if col.explicitDbTypeCast => {
+        case Some(dbType) if col.explicitDbTypeCast =>
           sw.write("cast(")
           v.write(sw)
           sw.write(s" as ${sw.quoteName(dbType)})")
-        }
-        case _ => {
+        case _ =>
           sw.write("(")
           v.write(sw)
           sw.write(")")
-        }
       }
       if(!z.isLast) {
         sw.write(",")
@@ -662,7 +659,7 @@ trait DatabaseAdapter {
     
     sw.unindent
 
-    if(us.whereClause != None) {
+    if(us.whereClause.isDefined) {
       sw.nextLine
       sw.write("Where")
       sw.nextLine
@@ -693,7 +690,7 @@ trait DatabaseAdapter {
     foreignKeyTable.name + "FK" + idWithinSchema
 
   def viewAlias(vn: ViewExpressionNode[_]) =
-     if(vn.view.prefix != None)
+     if(vn.view.prefix.isDefined)
        vn.view.prefix.get + "_" + vn.view.name + vn.uniqueId.get
      else
        vn.view.name + vn.uniqueId.get
@@ -752,7 +749,7 @@ trait DatabaseAdapter {
     execFailSafeExecute(writeDropTable(t.prefixedName), e=> isTableDoesNotExistException(e))
 
   def writeCompositePrimaryKeyConstraint(t: Table[_], cols: Iterable[FieldMetaData]) = 
-      writeUniquenessConstraint(t, cols);
+      writeUniquenessConstraint(t, cols)
 
   def writeUniquenessConstraint(t: Table[_], cols: Iterable[FieldMetaData]) = {
     //ALTER TABLE TEST ADD CONSTRAINT NAME_UNIQUE UNIQUE(NAME)
@@ -803,9 +800,9 @@ trait DatabaseAdapter {
 
     val tableName = columnDefs.head.parentMetaData.viewOrTable.prefixedName
 
-    if(name != None)
+    if(name.isDefined)
       sb.append(quoteName(name.get))
-    else if(nameOfCompositeKey != None)
+    else if(nameOfCompositeKey.isDefined)
       sb.append(quoteName("idx" + nameOfCompositeKey.get))
     else
       sb.append(quoteName("idx" + generateAlmostUniqueSuffixWithHash(tableName + "-" + columnDefs.map(_.columnName).mkString("-"))))

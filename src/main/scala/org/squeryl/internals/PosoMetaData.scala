@@ -17,7 +17,7 @@ class PosoMetaData[T](val clasz: Class[T], val schema: Schema, val viewOrTable: 
   def findFieldMetaDataForProperty(name: String) =
      _fieldsMetaData.find(fmd => fmd.nameOfProperty == name)
 
-  val isOptimistic = viewOrTable.ked.map(_.isOptimistic).getOrElse(false)
+  val isOptimistic = viewOrTable.ked.exists(_.isOptimistic)
   
   val constructor =
     _const.headOption.orElse(org.squeryl.internals.Utils.throwError(clasz.getName +
@@ -36,7 +36,7 @@ class PosoMetaData[T](val clasz: Class[T], val schema: Schema, val viewOrTable: 
 
     val sampleInstance4OptionTypeDeduction =
       try {
-        constructor._1.newInstance(constructor._2 :_*).asInstanceOf[AnyRef];
+        constructor._1.newInstance(constructor._2 :_*).asInstanceOf[AnyRef]
       }
       catch {
         case e:IllegalArgumentException =>
@@ -60,7 +60,7 @@ class PosoMetaData[T](val clasz: Class[T], val schema: Schema, val viewOrTable: 
           n
       })
 
-    val fmds = new ArrayBuffer[FieldMetaData];
+    val fmds = new ArrayBuffer[FieldMetaData]
 
     for(e <- name2MembersMap) {
       val name = e._1
@@ -113,7 +113,7 @@ class PosoMetaData[T](val clasz: Class[T], val schema: Schema, val viewOrTable: 
     val k = fmds.find(fmd => fmd.isIdFieldOfKeyedEntity)
 
     val compositePrimaryKeyGetter: Option[Method] =
-      if(k != None) // can't have both PK Field and CompositePK
+      if(k.isDefined) // can't have both PK Field and CompositePK
         None
       else {
         // verify if we have an 'id' method that is a composite key, in this case we need to construct a
@@ -130,9 +130,9 @@ class PosoMetaData[T](val clasz: Class[T], val schema: Schema, val viewOrTable: 
       }
 
     val metaDataForPk: Option[Either[FieldMetaData,Method]] =
-      if(k != None)
+      if(k.isDefined)
         Some(Left(k.get))
-      else if(compositePrimaryKeyGetter != None)
+      else if(compositePrimaryKeyGetter.isDefined)
         Some(Right(compositePrimaryKeyGetter.get))
       else
         None
@@ -144,7 +144,7 @@ class PosoMetaData[T](val clasz: Class[T], val schema: Schema, val viewOrTable: 
     fieldsMetaData.find(fmd => fmd.isOptimisticCounter)
 
   if(isOptimistic)
-    assert(optimisticCounter != None)
+    assert(optimisticCounter.isDefined)
 
   def _const = {
 
@@ -177,7 +177,7 @@ class PosoMetaData[T](val clasz: Class[T], val schema: Schema, val viewOrTable: 
 
     val res = new Array[Object](params.length)
 
-    for(i <- 0 to params.length -1) {
+    for(i <- 0 until params.length) {
       val v = FieldMetaData.createDefaultValue(schema.fieldMapper, c, params(i), None, None)
       res(i) = v
     }
@@ -222,7 +222,7 @@ class PosoMetaData[T](val clasz: Class[T], val schema: Schema, val viewOrTable: 
 
   private def _groupOfMembersIsProperty(property: (Option[Field], Option[Method], Option[Method], Set[Annotation])): Boolean  = {
 
-    if(property._4.find(an => an.isInstanceOf[Transient]) != None)
+    if(property._4.exists(an => an.isInstanceOf[Transient]))
       return false
 
     val hasAField = property._1.exists { field =>

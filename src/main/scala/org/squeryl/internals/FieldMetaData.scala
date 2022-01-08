@@ -74,9 +74,9 @@ class FieldMetaData(
   def sequenceName: String = {
 
     val ai = _columnAttributes.collectFirst{case a: AutoIncremented => a}.
-      getOrElse(org.squeryl.internals.Utils.throwError(s"${this} is not declared as autoIncremented, hence it has no sequenceName"))
+      getOrElse(org.squeryl.internals.Utils.throwError(s"$this is not declared as autoIncremented, hence it has no sequenceName"))
 
-    if(ai.nameOfSequence != None) {
+    if(ai.nameOfSequence.isDefined) {
       return ai.nameOfSequence.get
     }
 
@@ -85,7 +85,7 @@ class FieldMetaData(
 
       val s = _sequenceNamePerDBAdapter.get(c)
 
-      if(s != None)
+      if(s.isDefined)
         return s.get
 
       val s0 = Session.currentSession.databaseAdapter.createSequenceName(this)
@@ -134,7 +134,7 @@ class FieldMetaData(
   def isTransient =
     _columnAttributes.exists(_.isInstanceOf[IsTransient])
 
-  def isCustomType = customTypeFactory != None
+  def isCustomType = customTypeFactory.isDefined
 
   /**
    * @return the length defined in org.squeryl.annotations.Column.length
@@ -149,14 +149,14 @@ class FieldMetaData(
    * the most appropriate column type  
    */
   def length: Int =
-    if(columnAnnotation == None || columnAnnotation.get.length == -1) {
+    if(columnAnnotation.isEmpty || columnAnnotation.get.length == -1) {
       FieldMetaData.defaultFieldLength(wrappedFieldType, this)
     }
     else
       columnAnnotation.get.length
 
   def scale: Int =
-    if(columnAnnotation == None || columnAnnotation.get.scale == -1)
+    if(columnAnnotation.isEmpty || columnAnnotation.get.scale == -1)
       schema.defaultSizeOfBigDecimal._2
     else
       columnAnnotation.get.scale   
@@ -167,7 +167,7 @@ class FieldMetaData(
    * The name of the database column
    */
   def columnName =
-    if(columnAnnotation == None) {
+    if(columnAnnotation.isEmpty) {
       val nameDefinedInSchema = _columnAttributes.collectFirst{case n: Named => n.name}
       parentMetaData.schema.columnNameFromPropertyName(nameDefinedInSchema.getOrElse(nameOfProperty))
     }
@@ -201,10 +201,10 @@ class FieldMetaData(
     wrappedFieldType.isAssignableFrom(classOf[String])  
 
   def displayType =
-     (if(isOption)
+     if(isOption)
         "Option[" + fieldType.getName + "]"
       else
-        fieldType.getName)
+        fieldType.getName
 
   /**
    * When true, will cause Schema generation to declare as PrimaryKey, Note that for
@@ -251,7 +251,7 @@ class FieldMetaData(
   def get(o:AnyRef): AnyRef =
     try {
       val res =
-        if(getter != None)
+        if(getter.isDefined)
           _getFromGetter(o)
         else
           _getFromField(o)
@@ -288,9 +288,9 @@ class FieldMetaData(
       val v0: AnyRef =
         if(v == null)
           null
-        else if(enumeration != None)
+        else if(enumeration.isDefined)
           canonicalEnumerationValueFor(v.asInstanceOf[java.lang.Integer].intValue)
-        else if(customTypeFactory == None)
+        else if(customTypeFactory.isEmpty)
           v
         else {
           val f = customTypeFactory.get
@@ -310,17 +310,16 @@ class FieldMetaData(
           Option(v0)
 
 
-      if(setter != None)
+      if(setter.isDefined)
         _setWithSetter(target, actualValue)
       else
         _setWithField(target, actualValue)
     }
     catch {
-      case e: Exception => {
+      case e: Exception =>
         val typeOfV = if(v == null) "null" else v.getClass.getCanonicalName
         org.squeryl.internals.Utils.throwError(
           this.toString + " was invoked with value '" + v + "' of type " + typeOfV + " on object of type " + target.getClass.getName + " \n" + e)
-      }
     }
 
   }
@@ -350,87 +349,88 @@ trait FieldMetaDataFactory {
 object FieldMetaData {
 
   private[this] val EmptyObjectList = List.empty[Object]
-  
-  var factory = new FieldMetaDataFactory {   
 
-    def createPosoFactory(posoMetaData: PosoMetaData[_]): ()=>AnyRef =
+  val factory = new FieldMetaDataFactory {
+
+    def createPosoFactory(posoMetaData: PosoMetaData[_]): () => AnyRef =
       () => {
         val c = posoMetaData.constructor
-        c._1.newInstance(c._2 :_*).asInstanceOf[AnyRef];
+        c._1.newInstance(c._2: _*).asInstanceOf[AnyRef]
       }
 
     def build(parentMetaData: PosoMetaData[_], name: String, property: (Option[Field], Option[Method], Option[Method], Set[Annotation]), sampleInstance4OptionTypeDeduction: AnyRef, isOptimisticCounter: Boolean) = {
 
-      val fieldMapper = parentMetaData.schema.fieldMapper 
-      
-      val field  = property._1
+      val fieldMapper = parentMetaData.schema.fieldMapper
+
+      val field = property._1
       val getter = property._2
       val setter = property._3
       val annotations = property._4
 
-      val colAnnotation = annotations.collectFirst{case a: ColumnBase => a}
-      
+      val colAnnotation = annotations.collectFirst { case a: ColumnBase => a }
+
       /*
        * Retrieve the member in use, its class and its generic type
        */
       val (member, clsOfField, typeOfField) =
-        (setter.map(s => (s: Member, s.getParameterTypes.head, s.getGenericParameterTypes.head))
+        setter.map(s => (s: Member, s.getParameterTypes.head, s.getGenericParameterTypes.head))
           .orElse(getter.map(g => (g: Member, g.getReturnType, g.getGenericReturnType)))
           .orElse(field.map(f => (f: Member, f.getType, f.getType)))
-          .getOrElse(org.squeryl.internals.Utils.throwError("invalid field group")))
+          .getOrElse(org.squeryl.internals.Utils.throwError("invalid field group"))
 
       /*
        * Look for a value in the sample type.  If one exists and
        * it is not None, we can use it to deduce the Option type.   
        */
       var v: AnyRef =
-         if(sampleInstance4OptionTypeDeduction != null) {
-           field flatMap { f =>
-             f.get(sampleInstance4OptionTypeDeduction) match {
-               case a: AnyRef => Some(a)
-               case _ => None
-             }
-           } orElse {
-	             getter flatMap { _.invoke(sampleInstance4OptionTypeDeduction, EmptyObjectList  : _*) match {
-	               case a: AnyRef => Some(a)
-	               case _ => None
-	             }
-             }
-           } getOrElse
+        if (sampleInstance4OptionTypeDeduction != null) {
+          field flatMap { f =>
+            f.get(sampleInstance4OptionTypeDeduction) match {
+              case a: AnyRef => Some(a)
+              case _ => None
+            }
+          } orElse {
+            getter flatMap {
+              _.invoke(sampleInstance4OptionTypeDeduction, EmptyObjectList: _*) match {
+                case a: AnyRef => Some(a)
+                case _ => None
+              }
+            }
+          } getOrElse
             createDefaultValue(fieldMapper, member, clsOfField, Some(typeOfField), colAnnotation)
-         }
-         else null
+        }
+        else null
 
-      if(v != null && v == None) // can't deduce the type from None keep trying
+      if (v != null && v == None) // can't deduce the type from None keep trying
         v = null
 
       val constructorSuppliedDefaultValue = v
 
-      var customTypeFactory: Option[AnyRef=>Product1[Any] with AnyRef] = None
+      var customTypeFactory: Option[AnyRef => Product1[Any] with AnyRef] = None
 
-      if(classOf[Product1[Any]].isAssignableFrom(clsOfField))
+      if (classOf[Product1[Any]].isAssignableFrom(clsOfField))
         customTypeFactory = _createCustomTypeFactory(fieldMapper, parentMetaData.clasz, clsOfField)
 
-      if(customTypeFactory != None) {
+      if (customTypeFactory.isDefined) {
         val f = customTypeFactory.get
         v = f(null) // this creates a dummy (sample) field
       }
 
-      if(v == null)
-        /*
-         * If we have not yet been able to deduce the value of the field, delegate to createDefaultValue
-         * in order to do so.
-         */
+      if (v == null)
+      /*
+       * If we have not yet been able to deduce the value of the field, delegate to createDefaultValue
+       * in order to do so.
+       */
         v = createDefaultValue(fieldMapper, member, clsOfField, Some(typeOfField), colAnnotation)
 
       val deductionFailed =
         v match {
           case Some(None) => true
           case null => true
-          case a:Any  => false
+          case a: Any => false
         }
 
-      if(deductionFailed) {
+      if (deductionFailed) {
         val errorMessage = "Could not deduce Option[] type of field '" + name + "' of class " + parentMetaData.clasz.getName
         org.squeryl.internals.Utils.throwError(errorMessage)
       }
@@ -455,9 +455,9 @@ object FieldMetaData {
           typeOfFieldOrTypeOfOption
       }
 
-      if(typeOfFieldOrTypeOfOption == None.getClass) {
+      if (typeOfFieldOrTypeOfOption == None.getClass) {
         Utils.throwError(
-          "class " + parentMetaData.clasz.getCanonicalName +" used in table " +
+          "class " + parentMetaData.clasz.getCanonicalName + " used in table " +
             parentMetaData.viewOrTable.name +
             ", needs a zero arg constructor with sample values for Option[] field " +
             name
@@ -577,29 +577,27 @@ object FieldMetaData {
 	       * we'll see Object instead of scala.X
 	       */
 	      t match {
-	        case Some(pt: ParameterizedType) => {
-	          pt.getActualTypeArguments.toList match {
-	            case oType :: Nil => {
-	              if(classOf[Class[_]].isInstance(oType)) {
-	                /*
-	                 * Primitive types are seen by Java reflection as classOf[Object], 
-	                 * if that's what we find then we need to get the real value from @ScalaSignature
-	                 */
-	                val trueTypeOption = 
-	                  if (classOf[Object] == oType) optionTypeFromScalaSig(member)
-	                  else Some(oType.asInstanceOf[Class[_]])
-	                trueTypeOption flatMap { trueType =>
-	                  val deduced = createDefaultValue(fieldMapper, member, trueType, None, optionFieldsInfo)
-	                  Option(deduced) // Couldn't create default for type param if null
-	                }
-	              } else{
-	            	  None //Type parameter is not a Class
-	              }
-	            }
-	            case _ => None //Not a single type parameter
-	          }
-	        }
-	        case _ => None //Not a parameterized type
+	        case Some(pt: ParameterizedType) =>
+            pt.getActualTypeArguments.toList match {
+              case oType :: Nil =>
+                if(classOf[Class[_]].isInstance(oType)) {
+                  /*
+                   * Primitive types are seen by Java reflection as classOf[Object],
+                   * if that's what we find then we need to get the real value from @ScalaSignature
+                   */
+                  val trueTypeOption =
+                    if (classOf[Object] == oType) optionTypeFromScalaSig(member)
+                    else Some(oType.asInstanceOf[Class[_]])
+                  trueTypeOption flatMap { trueType =>
+                    val deduced = createDefaultValue(fieldMapper, member, trueType, None, optionFieldsInfo)
+                    Option(deduced) // Couldn't create default for type param if null
+                  }
+                } else{
+                  None //Type parameter is not a Class
+                }
+              case _ => None //Not a single type parameter
+            }
+          case _ => None //Not a parameterized type
 	      } 
       }
     } 

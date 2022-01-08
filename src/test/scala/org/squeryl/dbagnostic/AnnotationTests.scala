@@ -18,7 +18,9 @@ package org.squeryl.dbagnostic
 
 import org.squeryl.KeyedEntity
 import org.squeryl.annotations.{Row, Column}
-import org.squeryl.Schema
+import org.squeryl.Schema
+
+
 import org.squeryl.test.PrimitiveTypeModeForTests
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
@@ -101,13 +103,13 @@ class AnnotationTests extends AnyFunSuite with Matchers {
 
     val _isPersistedFmd = descendantOfKeyedObjects.posoMetaData.findFieldMetaDataForProperty("_isPersisted")
 
-    if(_isPersistedFmd != None)
+    if(_isPersistedFmd.isDefined)
       fail("testMetaData" + " failed, @transient annotation of field _isPersisted was not effective.")
 
-    if(descendantOfKeyedObjects.findFieldMetaDataForProperty("id") == None)
+    if(descendantOfKeyedObjects.findFieldMetaDataForProperty("id").isEmpty)
       fail("PosoMetaData has failed to build immutable field 'id'.")
 
-    if(nailCutters.findFieldMetaDataForProperty("id") == None)
+    if(nailCutters.findFieldMetaDataForProperty("id").isEmpty)
       fail("PosoMetaData has failed to build immutable field 'id'.")
 
     val brandNameMD = toasters.findFieldMetaDataForProperty("brandName").get
@@ -134,7 +136,7 @@ class AnnotationTests extends AnyFunSuite with Matchers {
    */
   test("scalaReflectionTests"){
     val colAnotations =
-      classOf[C].getDeclaredFields.toList.sortBy(f => f.getName).map(f => f.getAnnotations.toList).flatten
+      classOf[C].getDeclaredFields.toList.sortBy(f => f.getName).flatMap(f => f.getAnnotations.toList)
 
     val c = colAnotations.size
     assert(c == 3, "class " + classOf[C].getName + " has 3 field annotations of type Column that have failed to be reflected, " + c + " were reflected")

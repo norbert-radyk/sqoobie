@@ -17,7 +17,7 @@ object UuidTests {
   }  
   
   class UuidAsId extends KeyedEntity[UUID] {
-    var id = UUID.randomUUID
+    val id = UUID.randomUUID
     lazy val foreigns = TestSchema.uuidOneToMany.left(this)
   }
 

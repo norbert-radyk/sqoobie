@@ -32,15 +32,15 @@ object Utils {
 
   def close(s: Statement) =
     try {s.close}
-    catch {case e:SQLException => {}}
+    catch {case e:SQLException =>}
 
   def close(rs: ResultSet) =
     try {rs.close}
-    catch {case e:SQLException => {}}
+    catch {case e:SQLException =>}
 
   def close(c: Connection) =
     try {c.close}
-    catch {case e:SQLException => {}}
+    catch {case e:SQLException =>}
     
   private class DummyQueryElements[Cond](override val whereClause: Option[()=>LogicalBoolean]) extends QueryElements[Cond]
   
@@ -48,7 +48,7 @@ object Utils {
   private class DummyQuery[A,B](q: Queryable[A],f: A=>B, g: B=>Unit) extends Query1[A,Int](
     q,
     a => {
-      val res = f(a);
+      val res = f(a)
       g(res)
       (new DummyQueryElements(None)).select(0)
     },
