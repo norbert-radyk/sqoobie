@@ -12,6 +12,11 @@ licenses := Seq("Apache 2" -> url("https://www.apache.org/licenses/LICENSE-2.0.t
 
 parallelExecution := false
 
+scalacOptions ++= Seq(
+  "-deprecation",
+  "-feature",
+)
+
 libraryDependencies ++= Seq(
   "cglib" % "cglib-nodep" % "3.3.0",
   "com.h2database" % "h2" % "1.4.200" % "provided",

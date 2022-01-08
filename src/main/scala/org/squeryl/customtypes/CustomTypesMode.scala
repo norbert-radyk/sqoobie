@@ -1,18 +1,4 @@
-/*******************************************************************************
- * Copyright 2010 Maxime Lévesque
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- ***************************************************************************** */
+
 package org.squeryl.customtypes;
 
 
@@ -20,6 +6,7 @@ import java.util.{Date, UUID}
 import org.squeryl.dsl._
 import java.sql.Timestamp
 import org.squeryl.internals.FieldMapper
+import scala.language.implicitConversions
 
 trait CustomType[T] extends Product1[T] {
   def value: T
@@ -139,12 +126,10 @@ trait CustomTypesMode extends QueryDsl with FieldMapper {
   val optionBigDecimalTEF = new FloatTypedExpressionFactory[Option[BigDecimalField],TOptionBigDecimal] with DeOptionizer[BigDecimal,BigDecimalField,TBigDecimal,Option[BigDecimalField],TOptionBigDecimal] {
     val deOptionizer = bigDecimalTEF
   }      
-  
-  
+
   implicit def stringToTE(s: String) = stringTEF.createFromNativeJdbcValue(s)  
   implicit def optionStringToTE(s: Option[String]) = s.map(new StringField(_))
-  
-  
+
   implicit def dateToTE(s: Date) = dateTEF.createFromNativeJdbcValue(s)
   implicit def optionDateToTE(s: Option[Date]) = s.map(new DateField(_))
   
@@ -157,16 +142,12 @@ trait CustomTypesMode extends QueryDsl with FieldMapper {
   implicit def uuidToTE(s: UUID) = uuidTEF.createFromNativeJdbcValue(s)
   implicit def optionUUIDToTE(s: Option[UUID]) = s.map(new UuidField(_))
   
-  
   implicit def byteToTE(f: Byte) = byteTEF.createFromNativeJdbcValue(f)    
   implicit def optionByteToTE(f: Option[Byte]) = f.map(new ByteField(_))
 
   implicit def intToTE(f: IntField) = intTEF.create(f)
   implicit def optionIntToTE(f: Option[IntField]) = optionIntTEF.create(f)
-  
-  //implicit def _intToTE(f: Int) = intTEF.createFromNativeJdbcValue(f)
-  //implicit def _optionIntToTE(f: Option[Int]) = f.map(new IntField(_))
-  
+
   implicit def longToTE(f: Long) = longTEF.createFromNativeJdbcValue(f)
   implicit def optionLongToTE(f: Option[Long]) = f.map(new LongField(_))
   

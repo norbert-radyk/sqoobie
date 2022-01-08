@@ -15,17 +15,15 @@
  ***************************************************************************** */
 package org.squeryl
 
-import dsl._
-import ast._
-import internals._
+import org.squeryl.dsl._
+import org.squeryl.dsl.ast._
+import org.squeryl.internals._
 
-import reflect.ClassTag
-import java.sql.SQLException
 import java.io.PrintWriter
+import java.sql.SQLException
 import java.util.regex.Pattern
-
-import collection.mutable.{ArrayBuffer, HashMap, HashSet}
-import org.squeryl.internals.FieldMapper
+import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
+import scala.reflect.ClassTag
 
 class Schema(implicit val fieldMapper: FieldMapper) {
 
@@ -523,35 +521,13 @@ class Schema(implicit val fieldMapper: FieldMapper) {
 
   // POSO Life Cycle Callbacks :
 
-  def callbacks: collection.Seq[LifecycleEvent] = Nil
+  def callbacks: Seq[LifecycleEvent] = Nil
 
-////2.9.x approach for LyfeCycle events :
-//  def delayedInit(body: => Unit) = {
-//
-//    body
-//
-//    (for(cb <- callbacks; t <- cb.target) yield (t, cb))
-//    .groupBy(_._1)
-//    .mapValues(_.map(_._2))
-//    .foreach(
-//     (t:Tuple2[View[_],Seq[LifecycleEvent]]) => {
-//       t._1._callbacks = new LifecycleEventInvoker(t._2, t._1)
-//     }
-//    )
-//  }
-
-////2.8.x approach for LyfeCycle events :
-  private [squeryl] lazy val _callbacks: Map[View[_],LifecycleEventInvoker] = {
-    val m =
-      (for(cb <- callbacks; t <- cb.target) yield (t, cb))
-      .groupBy(_._1)
-      .mapValues(_.map(_._2))
-      .map(
-       (t:Tuple2[View[_],collection.Seq[LifecycleEvent]]) => {
-         (t._1, new LifecycleEventInvoker(t._2, t._1)): (View[_],LifecycleEventInvoker)
-       })
-      .toMap
-    m
+  private[squeryl] lazy val _callbacks: Map[View[_], LifecycleEventInvoker] = {
+    val viewEventMap: Seq[(View[_], LifecycleEvent)] = for (cb <- callbacks; t <- cb.target) yield (t, cb)
+    viewEventMap.groupMap(_._1)(_._2).map { case (view, lifecycleEvents) =>
+      view -> new LifecycleEventInvoker(lifecycleEvents, view)
+    }
   }
 
   import internals.PosoLifecycleEvent._
