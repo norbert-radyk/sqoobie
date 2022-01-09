@@ -1,25 +1,12 @@
 package org.squeryl.test.musicdb
 
-/** *****************************************************************************
-  * Copyright 2010 Maxime Lévesque
-  *
-  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
-  * use this file except in compliance with the License. You may obtain a copy
-  * of the License at
-  *
-  * http://www.apache.org/licenses/LICENSE-2.0
-  *
-  * Unless required by applicable law or agreed to in writing, software
-  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-  * License for the specific language governing permissions and limitations
-  * under the License.
-  */
+import org.scalatest.Assertion
 import org.scalatest.matchers.should.Matchers
 import org.squeryl._
 import org.squeryl.adapters._
 import org.squeryl.dsl._
 import org.squeryl.framework._
+import org.squeryl.test.PrimitiveTypeModeForTests
 import org.squeryl.test.PrimitiveTypeModeForTests._
 
 import java.sql.Timestamp
@@ -27,18 +14,18 @@ import java.util.Calendar
 
 object Genre extends Enumeration {
   type Genre = Value
-  val Jazz = Value(1, "Jazz")
-  val Rock = Value(2, "Rock")
-  val Latin = Value(3, "Latin")
-  val Bluegrass = Value(4, "Bluegrass")
-  val RenaissancePolyphony = Value(5, "RenaissancePolyphony")
+  val Jazz: Genre = Value(1, "Jazz")
+  val Rock: Genre = Value(2, "Rock")
+  val Latin: Genre = Value(3, "Latin")
+  val Bluegrass: Genre = Value(4, "Bluegrass")
+  val RenaissancePolyphony: Genre = Value(5, "RenaissancePolyphony")
 }
 
 object Tempo extends Enumeration {
   type Tempo = Value
-  val Largo = Value(1, "Largo")
-  val Allegro = Value(2, "Allegro")
-  val Presto = Value(3, "Presto")
+  val Largo: Tempo = Value(1, "Largo")
+  val Allegro: Tempo = Value(2, "Allegro")
+  val Presto: Tempo = Value(3, "Presto")
 }
 
 import org.squeryl.test.musicdb.Genre._
@@ -72,19 +59,18 @@ class Song(
 
 class Cd(var title: String, var mainArtist: Int, var year: Int)
     extends MusicDbObject {
-  override def toString = id + ":" + title
+  override def toString = s"$id:$title"
 }
-import org.squeryl.test.PrimitiveTypeModeForTests._
 
 class MusicDb extends Schema with Matchers {
 
-  val songs = table[Song]()
+  val songs: Table[Song] = table[Song]()
 
-  val artists = table[Person]()
+  val artists: Table[Person] = table[Person]()
 
-  val cds = table[Cd]()
+  val cds: Table[Cd] = table[Cd]()
 
-  override def drop = {
+  override def drop: Unit = {
     Session.cleanupResources
     super.drop
   }
@@ -92,16 +78,18 @@ class MusicDb extends Schema with Matchers {
 
 class TestData(schema: MusicDb) {
   import schema._
-  val herbyHancock = artists.insert(new Person("Herby", "Hancock", Some(68)))
-  val ponchoSanchez = artists.insert(
+  val herbyHancock: Person =
+    artists.insert(new Person("Herby", "Hancock", Some(68)))
+  val ponchoSanchez: Person = artists.insert(
     new Person("Poncho", "Sanchez", None, Some(new Timestamp(5)))
   )
-  val mongoSantaMaria = artists.insert(new Person("Mongo", "Santa Maria", None))
-  val alainCaron = artists.insert(new Person("Alain", "Caron", None))
-  val hossamRamzy = artists.insert(new Person("Hossam", "Ramzy", None))
+  val mongoSantaMaria: Person =
+    artists.insert(new Person("Mongo", "Santa Maria", None))
+  val alainCaron: Person = artists.insert(new Person("Alain", "Caron", None))
+  val hossamRamzy: Person = artists.insert(new Person("Hossam", "Ramzy", None))
 
-  val congaBlue = cds.insert(new Cd("Conga Blue", ponchoSanchez.id, 1998))
-  val watermelonMan = songs.insert(
+  val congaBlue: Cd = cds.insert(new Cd("Conga Blue", ponchoSanchez.id, 1998))
+  val watermelonMan: Song = songs.insert(
     new Song(
       "Watermelon Man",
       herbyHancock.id,
@@ -111,7 +99,7 @@ class TestData(schema: MusicDb) {
       Some(Latin)
     )
   )
-  val besameMama = songs.insert(
+  val besameMama: Song = songs.insert(
     new Song(
       "Besame Mama",
       mongoSantaMaria.id,
@@ -122,10 +110,10 @@ class TestData(schema: MusicDb) {
     )
   )
 
-  val freedomSoundAlbum =
+  val freedomSoundAlbum: Cd =
     cds.insert(new Cd("Freedom Sound", ponchoSanchez.id, 1997))
 
-  val freedomSound = songs.insert(
+  val freedomSound: Song = songs.insert(
     new Song(
       "Freedom Sound",
       ponchoSanchez.id,
@@ -155,11 +143,11 @@ abstract class MusicDbTestRun
 
   var sharedTestInstance: TestData = null
 
-  override def prePopulate() = {
+  override def prePopulate(): Unit = {
     sharedTestInstance = new TestData(schema)
   }
 
-  lazy val poncho =
+  lazy val poncho: Query[Person] =
     from(artists)(a => where(a.firstName === "Poncho") select a)
 
   test("JoinWithCompute") {
@@ -168,7 +156,7 @@ abstract class MusicDbTestRun
     val q =
       join(artists, songs.leftOuter)((a, s) =>
         groupBy(a.id, a.firstName)
-          compute (countDistinct(s.map(_.id)))
+          compute countDistinct(s.map(_.id))
           on (a.id === s.map(_.authorId))
       )
 
@@ -208,7 +196,7 @@ abstract class MusicDbTestRun
     val firstSongs =
       from(songs)(s =>
         groupBy(s.authorId)
-          compute (min(s.id))
+          compute min(s.id)
       )
 
     val j2 =
@@ -224,14 +212,14 @@ abstract class MusicDbTestRun
       ).toList
   }
 
-  lazy val songsFeaturingPoncho =
+  lazy val songsFeaturingPoncho: Query[Song] =
     from(songs, artists)((s, a) =>
       where(a.firstName === "Poncho" and s.interpretId === a.id)
         select s
         orderBy (s.title, a.id.desc)
     )
 
-  lazy val songsFeaturingPonchoNestedInWhere =
+  lazy val songsFeaturingPonchoNestedInWhere: Query[Song] =
     from(songs, artists)((s, a) =>
       where(
         s.interpretId in from(artists)(a =>
@@ -239,60 +227,66 @@ abstract class MusicDbTestRun
         )
       )
         select s
-        orderBy (s.title.asc)
+        orderBy s.title.asc
     ).distinct
 
-  def songCountPerAlbum(cds: Queryable[Cd]) =
+  def songCountPerAlbum(
+      cds: Queryable[Cd]
+  ): Query[GroupWithMeasures[String, Long]] =
     from(cds, songs)((cd, song) =>
       where(song.cdId === cd.id)
-        groupBy (cd.title) compute (count)
-        orderBy (cd.title)
+        groupBy cd.title compute count
+        orderBy cd.title
     )
 
-  lazy val songCountPerAlbumFeaturingPoncho = songCountPerAlbum(
+  lazy val songCountPerAlbumFeaturingPoncho
+      : Query[GroupWithMeasures[String, Long]] = songCountPerAlbum(
     from(songs, artists, cds)((s, a, cd) =>
       where(
         a.firstName === "Poncho" and s.interpretId === a.id and s.cdId === cd.id
       )
-        select (cd)
+        select cd
     ).distinct
   )
 
-  lazy val songsFeaturingPonchoNestedInFrom =
+  lazy val songsFeaturingPonchoNestedInFrom: Query[(Song, String)] =
     from(songs, poncho)((s, a) =>
       where(s.interpretId === a.id)
         select ((s, a.firstName))
-        orderBy (s.title)
+        orderBy s.title
     )
 
-  def songCountPerAlbumId(cds: Queryable[Cd]) =
+  def songCountPerAlbumId(
+      cds: Queryable[Cd]
+  ): Query[GroupWithMeasures[Int, Long]] =
     from(cds, songs)((cd, song) =>
       where(song.cdId === cd.id)
-        groupBy (cd.id) compute (count)
+        groupBy cd.id compute count
     )
 
-  lazy val songCountPerAlbumIdJoinedWithAlbum =
+  lazy val songCountPerAlbumIdJoinedWithAlbum: Query[(String, Long)] =
     from(songCountPerAlbumId(cds), cds)((sc, cd) =>
       where(sc.key === cd.id)
         select ((cd.title, sc.measures))
-        orderBy (cd.title)
+        orderBy cd.title
     )
 
-  lazy val songCountPerAlbumIdJoinedWithAlbumZ =
+  lazy val songCountPerAlbumIdJoinedWithAlbumZ
+      : Query[(Cd, GroupWithMeasures[Int, Long])] =
     from(songCountPerAlbumId(cds), cds)((sc, cd) =>
       where(sc.key === cd.id)
         select ((cd, sc))
-        orderBy (cd.title)
+        orderBy cd.title
     )
 
-  def songCountPerAlbumIdJoinedWithAlbumNested =
+  def songCountPerAlbumIdJoinedWithAlbumNested: Query[(String, Long)] =
     from(songCountPerAlbumIdJoinedWithAlbumZ)(q =>
       select((q._1.title, q._2.measures))
-        orderBy (q._1.title)
+        orderBy q._1.title
     )
 
   // TODO: list2Queryable conversion using 'select x0 as x from dual union ...'
-  def artistsInvolvedInSongs(songIds: List[Int]) =
+  def artistsInvolvedInSongs(songIds: List[Int]): Query[Person] =
     from(
       from(songs)(s =>
         where((s.authorId in songIds) or (s.interpretId in songIds))
@@ -302,32 +296,34 @@ abstract class MusicDbTestRun
     )((s, a) =>
       where(s.authorId === a.id or s.interpretId === a.id)
         select a
-        orderBy (a.lastName.desc)
+        orderBy a.lastName.desc
     ).distinct
 
-  def songsFeaturingPonchoNestedInWhereWithString =
+  def songsFeaturingPonchoNestedInWhereWithString: Query[Song] =
     from(songs, artists)((s, a) =>
       where(
-        s.title in from(songs)(s => where(s.id === 123) select (s.title))
+        s.title in from(songs)(s => where(s.id === 123) select s.title)
       )
         select s
-        orderBy (s.title.asc)
+        orderBy s.title.asc
     )
 
-  def countCds(cds: Queryable[Cd]) =
+  def countCds(cds: Queryable[Cd]): Query[Measures[Long]] =
     from(cds)(c => compute(count))
 
-  def countCds2(cds: Queryable[Cd]) = cds.Count
+  def countCds2(
+      cds: Queryable[Cd]
+  ): PrimitiveTypeModeForTests.ScalarQuery[Long] = cds.Count
 
-  def avgSongCountForAllArtists =
+  def avgSongCountForAllArtists: Query[Measures[Option[Double]]] =
     from(
       from(artists, songs)((a, s) =>
         where(s.authorId === a.id)
-          groupBy a.id compute (count)
+          groupBy a.id compute count
       )
     )((sonCountPerArtist) => compute(avg(sonCountPerArtist.measures)))
 
-  def assertionFailed(s: String, actual: Any, expected: Any) =
+  def assertionFailed(s: String, actual: Any, expected: Any): Assertion =
     assert(
       actual == expected,
       "" + s + " failed, got " + actual + " expected " + expected
@@ -463,7 +459,7 @@ abstract class MusicDbTestRun
     def yearOfCongaBluePlus1 =
       from(cds)(cd =>
         where(cd.title === testInstance.congaBlue.title)
-          select (&(cd.year plus 1))
+          select &(cd.year plus 1)
       )
 
     validateQuery(
@@ -501,7 +497,7 @@ abstract class MusicDbTestRun
       )(a => select(a))
 
     def selfJoinNested4LevelPartialSelect =
-      from(selfJoinNested3Level)(a => where(a.id gt -1) select (a.lastName))
+      from(selfJoinNested3Level)(a => where(a.id gt -1) select a.lastName)
 
     validateQuery(
       "selfJoinNested4LevelPartialSelect",
@@ -604,8 +600,8 @@ abstract class MusicDbTestRun
       val q =
         from(artists)(a =>
           where(a.firstName.regex(".*on.*"))
-            select (&(upper(a.firstName) || lower(a.firstName)))
-            orderBy (a.firstName)
+            select &(upper(a.firstName) || lower(a.firstName))
+            orderBy a.firstName
         )
 
       val testInstance = sharedTestInstance; import testInstance._
@@ -630,13 +626,13 @@ abstract class MusicDbTestRun
     val q =
       from(artists)(a =>
         where(
-          a.firstName in (Seq(
+          a.firstName in Seq(
             mongoSantaMaria.firstName,
             ponchoSanchez.firstName
-          ))
+          )
         )
-          select (&(a.firstName || "zozo"))
-          orderBy (a.firstName)
+          select &(a.firstName || "zozo")
+          orderBy a.firstName
       )
 
     val expected =
@@ -827,7 +823,7 @@ abstract class MusicDbTestRun
     )
   }
 
-  def inhibitedArtistsInQuery(inhibit: Boolean) =
+  def inhibitedArtistsInQuery(inhibit: Boolean): Query[Song] =
     from(songs, artists.inhibitWhen(inhibit))((s, a) =>
       where(a.get.firstName === "Poncho" and s.interpretId === a.get.id)
         select s
@@ -839,7 +835,7 @@ abstract class MusicDbTestRun
     val allSongs =
       from(songs)(s =>
         select(s)
-          orderBy (s.title)
+          orderBy s.title
       ).toList.map(s => s.id)
 
     val q = inhibitedArtistsInQuery(true)
@@ -864,7 +860,7 @@ abstract class MusicDbTestRun
     )
   }
 
-  def inhibitedSongsInQuery(inhibit: Boolean) =
+  def inhibitedSongsInQuery(inhibit: Boolean): Query[(Option[Song], Person)] =
     from(songs.inhibitWhen(inhibit), artists)((s, a) =>
       where(a.firstName === "Poncho" and s.get.interpretId === a.id)
         select ((s, a))
@@ -909,7 +905,7 @@ abstract class MusicDbTestRun
     val testInstance = sharedTestInstance; import testInstance._
     val q = from(artists)(a =>
       select(a)
-        orderBy (a.firstName.asc)
+        orderBy a.firstName.asc
     )
 
     val p1 = q.page(0, 2).map(a => a.firstName).toList
@@ -929,7 +925,7 @@ abstract class MusicDbTestRun
     from(artists)(a =>
       where(a.firstName between (s1, s2))
         select a
-        orderBy (a.firstName.asc)
+        orderBy a.firstName.asc
     ).map(a => a.firstName).toList
 
   test("BetweenOperator") {
@@ -966,7 +962,7 @@ abstract class MusicDbTestRun
   test("Enums IN") {
     val gs = List(Jazz, Rock)
     val mainstream = from(songs)(s =>
-      where(s.genre in (gs))
+      where(s.genre in gs)
         select s
     )
 
@@ -1001,11 +997,9 @@ abstract class MusicDbTestRun
     val testAssemblaIssue9 =
       from(songs)(s =>
         where(
-          s.genre in (
-            from(songs)(s2 => select(s2.genre))
-          )
+          s.genre in from(songs)(s2 => select(s2.genre))
         )
-          select (s.genre)
+          select s.genre
       )
 
     testAssemblaIssue9.map(_.id).toSet
@@ -1098,7 +1092,7 @@ abstract class MusicDbTestRun
   def dynamicWhereOnArtists(
       firstName: Option[String],
       lastName: Option[String]
-  ) =
+  ): Query[Person] =
     from(artists)(a =>
       where(
         (a.firstName === firstName.?) and
@@ -1137,9 +1131,6 @@ abstract class MusicDbTestRun
       from(cds)(cd => compute(min(cd.title)))
 
     val r2 = cds.where(_.title in q2).single
-//    println(q2.statement)
-//    println(cds.toList)
-//    println(cds.where(_.title in q2).statement)
     congaBlue.title shouldBe r2.title
 
     // should compile (valid SQL even though phony...) :
@@ -1160,7 +1151,7 @@ abstract class MusicDbTestRun
     val q2 =
       from(cds, q1)((cd, q) =>
         where(cd.id === q.measures.get)
-          select (cd)
+          select cd
       )
 
     val r1 = q2.single
@@ -1173,7 +1164,7 @@ abstract class MusicDbTestRun
     val q4 =
       from(cds, q3)((cd, q) =>
         where(cd.id === q.key)
-          select (cd)
+          select cd
       )
     // should run without exception against the Db :
     q4.toList
@@ -1197,7 +1188,7 @@ abstract class MusicDbTestRun
       where(a.id === ponchoSanchez.id)
         select ((a, c))
         on (a.id === c.mainArtist)
-    ).toList.size should be > (1)
+    ).toList.size should be > 1
     /*
      * Since we know the hossam exists, a proper left outer join
      * should return at least 1 result
@@ -1207,7 +1198,7 @@ abstract class MusicDbTestRun
         select ((a, c))
         on (c.map(_.mainArtist) === a.id)
     )
-    query1.toList.size should be > (0)
+    query1.toList.size should be > 0
     /*
      * Properly inhibiting the left outer should result in one row even though
      * we know that at least 2 cds exist
@@ -1223,8 +1214,7 @@ abstract class MusicDbTestRun
   test("Inhibit single LogicalBoolean") {
     from(artists)(a =>
       where((a.age === 1000000).inhibitWhen(true)) select a
-    ).toList.size should be > (0)
-
+    ).toList.size should be > 0
   }
 
   test("Inhibit one side of LogicalBoolean") {
@@ -1248,28 +1238,7 @@ abstract class MusicDbTestRun
           .inhibitWhen(true)
       )
         select a
-    ).toList.size should be > (0)
+    ).toList.size should be > 0
   }
 
-  test("Inhibit right hand side of enum") {}
-//  //class EnumE[A <: Enumeration#Value](val a: A) {
-//  class EnumE[A](val a: A) {
-//
-//    def ===(b: EnumE[A]) = "not relevant"
-//  }
-//
-//  //implicit def enum2EnumNode[A <: Enumeration#Value](e: A) = new EnumE[A](e)
-//
-//  implicit def enum2EnumNode[A <: Enumeration#Value](e: A) = new EnumE[A](e)
-//
-//  import Genre._
-//  import Tempo._
-//
-//  val genre = Jazz
-//  val tempo = Allegro
-//
-//  genre === Latin
-//
-//  tempo === Latin
-//
 }

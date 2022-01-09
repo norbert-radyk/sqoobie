@@ -1,18 +1,3 @@
-/** *****************************************************************************
-  * Copyright 2010 Maxime Lévesque
-  *
-  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
-  * use this file except in compliance with the License. You may obtain a copy
-  * of the License at
-  *
-  * http://www.apache.org/licenses/LICENSE-2.0
-  *
-  * Unless required by applicable law or agreed to in writing, software
-  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-  * License for the specific language governing permissions and limitations
-  * under the License.
-  */
 package org.squeryl
 
 import org.squeryl.dsl._
@@ -27,7 +12,7 @@ import scala.reflect.ClassTag
 
 class Schema(implicit val fieldMapper: FieldMapper) {
 
-  protected implicit def thisSchema = this
+  protected implicit def thisSchema: Schema = this
 
   /** Contains all Table[_]s in this shema, and also all
     * ManyToManyRelation[_,_,_]s (since they are also Table[_]s
@@ -83,7 +68,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
     _tables.filter(_.posoMetaData.clasz == c).asInstanceOf[Iterable[Table[A]]]
   }
 
-  def findAllTablesFor[A](c: Class[A]) =
+  def findAllTablesFor[A](c: Class[A]): Iterable[Table[_]] =
     _tables
       .filter(t => c.isAssignableFrom(t.posoMetaData.clasz))
       .asInstanceOf[Iterable[Table[_]]]
@@ -91,7 +76,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
   object NamingConventionTransforms {
 
     @deprecated("use snakify() instead as of 0.9.5beta", "0.9.5")
-    def camelCase2underScore(name: String) =
+    def camelCase2underScore(name: String): String =
       name.toList.map(c => if (c.isUpper) "_" + c else c).mkString
 
     private final val FIRST_PATTERN = Pattern.compile("^([^A-Za-z_])")
@@ -109,9 +94,9 @@ class Schema(implicit val fieldMapper: FieldMapper) {
         .toLowerCase
   }
 
-  def columnNameFromPropertyName(propertyName: String) = propertyName
+  def columnNameFromPropertyName(propertyName: String): String = propertyName
 
-  def tableNameFromClassName(tableName: String) = tableName
+  def tableNameFromClassName(tableName: String): String = tableName
 
   def name: Option[String] = None
 
@@ -191,7 +176,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
     }
   }
 
-  def create = {
+  def create: Unit = {
     _createTables
     if (_dbAdapter.supportsForeignKeyConstraints)
       _declareForeignKeyConstraints
@@ -254,11 +239,11 @@ class Schema(implicit val fieldMapper: FieldMapper) {
     }
   }
 
-  def createColumnGroupConstraintsAndIndexes =
+  def createColumnGroupConstraintsAndIndexes: Unit =
     for (statement <- _writeColumnGroupAttributeAssignments)
       _executeDdl(statement)
 
-  private def _dropForeignKeyConstraints = {
+  private def _dropForeignKeyConstraints: Unit = {
 
     val cs = Session.currentSession
     val dba = cs.databaseAdapter
@@ -273,7 +258,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
     }
   }
 
-  private def _declareForeignKeyConstraints =
+  private def _declareForeignKeyConstraints: Unit =
     for (fk <- _foreignKeyConstraints)
       _executeDdl(fk)
 
@@ -308,7 +293,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
       )
     }
 
-  private def _createTables = {
+  private def _createTables: Unit = {
     for (t <- _tables) {
       val sw = new StatementWriter(_dbAdapter)
       _dbAdapter.writeCreateTable(t, sw, this)
@@ -319,7 +304,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
     }
   }
 
-  private def _createConstraintsOfCompositePKs =
+  private def _createConstraintsOfCompositePKs: Unit =
     for (cpk <- _allCompositePrimaryKeys) {
       val createConstraintStmt =
         _dbAdapter.writeCompositePrimaryKeyConstraint(cpk._1, cpk._2)
@@ -419,8 +404,8 @@ class Schema(implicit val fieldMapper: FieldMapper) {
 
   class ReferentialActionImpl(token: String, ev: ReferentialEvent)
       extends ReferentialAction {
-    def event = ev.eventName
-    def action = token
+    def event: String = ev.eventName
+    def action: String = token
   }
 
   protected def onUpdate = new ReferentialEvent("update")
@@ -441,7 +426,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
 
   def applyDefaultForeignKeyPolicy(
       foreignKeyDeclaration: ForeignKeyDeclaration
-  ) =
+  ): Unit =
     foreignKeyDeclaration.constrainReference()
 
   /** @return
@@ -451,7 +436,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
     *   scale=20) default is (20,16)
     */
 
-  def defaultSizeOfBigDecimal = (20, 16)
+  def defaultSizeOfBigDecimal: (Int, Int) = (20, 16)
 
   /** @return
     *   the default database storage (column) length for String columns for this
@@ -462,13 +447,13 @@ class Schema(implicit val fieldMapper: FieldMapper) {
 
   /** protected since table declarations must only be done inside a Schema
     */
-  protected def declare[B](a: BaseColumnAttributeAssignment*) = a
+  protected def declare[B](a: BaseColumnAttributeAssignment*): Seq[BaseColumnAttributeAssignment] = a
 
   /** protected since table declarations must only be done inside a Schema
     */
   protected def on[A](
       table: Table[A]
-  )(declarations: A => Seq[BaseColumnAttributeAssignment]) = {
+  )(declarations: A => Seq[BaseColumnAttributeAssignment]): Unit = {
 
     if (table == null)
       org.squeryl.internals.Utils.throwError(
@@ -512,18 +497,9 @@ class Schema(implicit val fieldMapper: FieldMapper) {
           .throwError("did not match on " + a.getClass.getName)
     }
 
-//    for(ca <- colAss.find(_.isIdFieldOfKeyedEntity))
-//      assert(
-//        ca.columnAttributes.exists(_.isInstanceOf[PrimaryKey]) ||
-//        ca.columnAttributes.exists(_.isInstanceOf[Unique]),
-//        "Column 'id' of table '" + table.name +
-//        "' must have a uniqueness constraint by having the column attribute 'primaryKey' or 'unique' to honor it's KeyedEntity trait"
-//      )
-
     // Validate that autoIncremented is not used on other fields than KeyedEntity[A].id :
     // since it is not yet unsupported :
     for (ca <- colAss) ca match {
-      case cga: CompositeKeyAttributeAssignment =>
       case caa: ColumnAttributeAssignment =>
         for (
           ca <- caa.columnAttributes if ca
@@ -533,16 +509,14 @@ class Schema(implicit val fieldMapper: FieldMapper) {
             "Field " + caa.left.nameOfProperty + " of table " + table.name +
               " is declared as autoIncremented, auto increment is currently only supported on KeyedEntity[A].id"
           )
-      case dva: Any =>
+      case _ =>
     }
   }
 
-  private def _addColumnGroupAttributeAssignment(
-      cga: ColumnGroupAttributeAssignment
-  ) =
+  private def _addColumnGroupAttributeAssignment(cga: ColumnGroupAttributeAssignment) =
     _columnGroupAttributeAssignments.append(cga)
 
-  def defaultColumnAttributesForKeyedEntityId(typeOfIdField: Class[_]) =
+  def defaultColumnAttributesForKeyedEntityId(typeOfIdField: Class[_]): Set[_ >: PrimaryKey <: AttributeValidOnNumericalColumn] =
     if (
       typeOfIdField.isAssignableFrom(classOf[java.lang.Long]) || typeOfIdField
         .isAssignableFrom(classOf[java.lang.Integer])
@@ -551,29 +525,29 @@ class Schema(implicit val fieldMapper: FieldMapper) {
     else
       Set(new PrimaryKey)
 
-  protected def unique = Unique()
+  protected def unique: Unique = Unique()
 
-  protected def primaryKey = PrimaryKey()
+  protected def primaryKey: PrimaryKey = PrimaryKey()
 
-  protected def autoIncremented = AutoIncremented(None)
+  protected def autoIncremented: AutoIncremented = AutoIncremented(None)
 
-  protected def autoIncremented(sequenceName: String) = AutoIncremented(
+  protected def autoIncremented(sequenceName: String): AutoIncremented = AutoIncremented(
     Some(sequenceName)
   )
 
-  protected def indexed = Indexed(None)
+  protected def indexed: Indexed = Indexed(None)
 
-  protected def indexed(indexName: String) = Indexed(Some(indexName))
+  protected def indexed(indexName: String): Indexed = Indexed(Some(indexName))
 
-  protected def dbType(declaration: String) = DBType(declaration)
+  protected def dbType(declaration: String): DBType = DBType(declaration)
 
-  protected def uninsertable = Uninsertable()
+  protected def uninsertable: Uninsertable = Uninsertable()
 
-  protected def unupdatable = Unupdatable()
+  protected def unupdatable: Unupdatable = Unupdatable()
 
-  protected def named(name: String) = Named(name)
+  protected def named(name: String): Named = Named(name)
 
-  protected def transient = IsTransient()
+  protected def transient: IsTransient = IsTransient()
 
   class ColGroupDeclaration(cols: collection.Seq[FieldMetaData]) {
 
@@ -657,7 +631,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
     */
   implicit def anyRef2ActiveTransaction[A](
       a: A
-  )(implicit queryDsl: QueryDsl, m: ClassTag[A]) =
+  )(implicit queryDsl: QueryDsl, m: ClassTag[A]): ActiveRecord[A] =
     new ActiveRecord(a, queryDsl, m)
 
   /** Active Record pattern implementation. Enables the user to insert an object
@@ -672,12 +646,12 @@ class Schema(implicit val fieldMapper: FieldMapper) {
 
     /** Same as {{{table.insert(a)}}}
       */
-    def save =
+    def save: Option[Unit] =
       _performAction(_.insert(a))
 
     /** Same as {{{table.update(a)}}}
       */
-    def update(implicit ked: KeyedEntityDef[A, _]) =
+    def update(implicit ked: KeyedEntityDef[A, _]): Option[Unit] =
       _performAction(_.update(a))
 
   }
