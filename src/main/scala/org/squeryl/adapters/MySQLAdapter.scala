@@ -1,4 +1,3 @@
-
 package org.squeryl.adapters
 
 import org.squeryl.{ReferentialAction, Table}
@@ -24,11 +23,14 @@ class MySQLAdapter extends DatabaseAdapter {
   }
 
   override def writeForeignKeyDeclaration(
-    foreignKeyTable: Table[_], foreignKeyColumnName: String,
-    primaryKeyTable: Table[_], primaryKeyColumnName: String,
-    referentialAction1: Option[ReferentialAction],
-    referentialAction2: Option[ReferentialAction],
-    fkId: Int) = {
+      foreignKeyTable: Table[_],
+      foreignKeyColumnName: String,
+      primaryKeyTable: Table[_],
+      primaryKeyColumnName: String,
+      referentialAction1: Option[ReferentialAction],
+      referentialAction2: Option[ReferentialAction],
+      fkId: Int
+  ) = {
 
     val sb = new java.lang.StringBuilder(256)
 
@@ -43,8 +45,8 @@ class MySQLAdapter extends DatabaseAdapter {
     sb.append("(")
     sb.append(primaryKeyColumnName)
     sb.append(")")
-    
-    val f =  (ra:ReferentialAction) => {
+
+    val f = (ra: ReferentialAction) => {
       sb.append(" on ")
       sb.append(ra.event)
       sb.append(" ")
@@ -57,46 +59,59 @@ class MySQLAdapter extends DatabaseAdapter {
     sb.toString
   }
 
-  override def writeDropForeignKeyStatement(foreignKeyTable: Table[_], fkName: String) =
+  override def writeDropForeignKeyStatement(
+      foreignKeyTable: Table[_],
+      fkName: String
+  ) =
     "alter table " + foreignKeyTable.prefixedName + " drop foreign key " + fkName
 
   override def isTableDoesNotExistException(e: SQLException) =
-    e.getErrorCode == 1051 
+    e.getErrorCode == 1051
 
-  /**
-   *
-   * Foreign key constraints are not supported,
-   *
-   *  MySQL has some pre requisites for creating a foreign key constraint
-   *  one of which is :
-   *
-   *  -> The foreign key can be self referential (referring to the same table). When you add a foreign key constraint to a table using ALTER TABLE, remember to create the required indexes first.
-   *
-   *  http://dev.mysql.com/doc/refman/5.1/en/innodb-foreign-key-constraints.html
-   *
-   *  Apparently there are other pre requisites, because creating foreign key constraints still gives :
-   *
-   * 		Time	Action	Response	Duration / Fetch
-   *  0	1	18:26:25	alter table CourseSubscription add constraint CourseSubscriptionFK3
-   *  foreign key (courseId) references Course(id)	Error Code: 1005
-   *  Can't create table 'test.#sql-57c_42' (errno: 150)
-   *
-   * 
-   *  http://bytes.com/topic/mysql/answers/865699-cant-create-table-errno-150-foreign-key-constraints
-   *
-   * 
-   */
+  /** Foreign key constraints are not supported,
+    *
+    * MySQL has some pre requisites for creating a foreign key constraint one of
+    * which is :
+    *
+    * -> The foreign key can be self referential (referring to the same table).
+    * When you add a foreign key constraint to a table using ALTER TABLE,
+    * remember to create the required indexes first.
+    *
+    * http://dev.mysql.com/doc/refman/5.1/en/innodb-foreign-key-constraints.html
+    *
+    * Apparently there are other pre requisites, because creating foreign key
+    * constraints still gives :
+    *
+    * Time Action Response Duration / Fetch 0 1 18:26:25 alter table
+    * CourseSubscription add constraint CourseSubscriptionFK3 foreign key
+    * (courseId) references Course(id) Error Code: 1005 Can't create table
+    * 'test.#sql-57c_42' (errno: 150)
+    *
+    * http://bytes.com/topic/mysql/answers/865699-cant-create-table-errno-150-foreign-key-constraints
+    */
 
   override def supportsForeignKeyConstraints = false
 
-  override def writeRegexExpression(left: ExpressionNode, pattern: String, sw: StatementWriter) = {
+  override def writeRegexExpression(
+      left: ExpressionNode,
+      pattern: String,
+      sw: StatementWriter
+  ) = {
     sw.write("(")
     left.write(sw)
-    sw.write(" regexp ?)")    
-    sw.addParam(ConstantStatementParam(InternalFieldMapper.stringTEF.createConstant(pattern)))    
+    sw.write(" regexp ?)")
+    sw.addParam(
+      ConstantStatementParam(
+        InternalFieldMapper.stringTEF.createConstant(pattern)
+      )
+    )
   }
 
-  override def writeConcatOperator(left: ExpressionNode, right: ExpressionNode, sw: StatementWriter) = {
+  override def writeConcatOperator(
+      left: ExpressionNode,
+      right: ExpressionNode,
+      sw: StatementWriter
+  ) = {
     sw.write("concat(")
     left.write(sw)
     sw.write(",")

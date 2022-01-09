@@ -1,7 +1,12 @@
 package org.squeryl.test
 
 import org.squeryl._
-import org.squeryl.framework.{DBConnector, SchemaTester, RunTestsInsideTransaction, SingleTestRun}
+import org.squeryl.framework.{
+  DBConnector,
+  SchemaTester,
+  RunTestsInsideTransaction,
+  SingleTestRun
+}
 import java.util.UUID
 import org.squeryl.test.PrimitiveTypeModeForTests._
 
@@ -10,12 +15,13 @@ object UuidTests {
     val id: Long = 0
     val uuid = UUID.randomUUID
   }
-  
-  class UuidWithOption(val optionalUuid: Option[UUID]) extends KeyedEntity[Long] {
+
+  class UuidWithOption(val optionalUuid: Option[UUID])
+      extends KeyedEntity[Long] {
     def this() = this(Some(UUID.randomUUID()))
     val id: Long = 0
-  }  
-  
+  }
+
   class UuidAsId extends KeyedEntity[UUID] {
     val id = UUID.randomUUID
     lazy val foreigns = TestSchema.uuidOneToMany.left(this)
@@ -31,7 +37,8 @@ object UuidTests {
     val uuidAsForeignKey = table[UuidAsForeignKey]()
     val uuidWithOption = table[UuidWithOption]()
 
-    val uuidOneToMany = oneToManyRelation(uuidAsId, uuidAsForeignKey).via(_.id === _.foreignUuid)
+    val uuidOneToMany =
+      oneToManyRelation(uuidAsId, uuidAsForeignKey).via(_.id === _.foreignUuid)
 
     override def drop = {
       Session.cleanupResources
@@ -53,9 +60,13 @@ abstract class UuidTests extends SchemaTester with RunTestsInsideTransaction {
     val testObject = new UuidAsProperty
     testObject.save
 
-    testObject.uuid should equal(uuidAsProperty.where(_.id === testObject.id).single.uuid)
+    testObject.uuid should equal(
+      uuidAsProperty.where(_.id === testObject.id).single.uuid
+    )
 
-    testObject.uuid should equal(uuidAsProperty.where(_.uuid in List(testObject.uuid)).single.uuid)
+    testObject.uuid should equal(
+      uuidAsProperty.where(_.uuid in List(testObject.uuid)).single.uuid
+    )
   }
 
   test("UuidOptional", SingleTestRun) {
@@ -63,28 +74,30 @@ abstract class UuidTests extends SchemaTester with RunTestsInsideTransaction {
 
     val testObject = new UuidWithOption(None)
     testObject.save
-    
+
     val fromDb = uuidWithOption.lookup(testObject.id).get
     println(fromDb.optionalUuid)
     fromDb.optionalUuid should equal(None)
-    
+
     val uuid = UUID.randomUUID()
-    
-    update(uuidWithOption)(p =>
-      where(p.id === testObject.id)
-      set(p.optionalUuid := Some(uuid))
-    )
-    
-    uuidWithOption.lookup(testObject.id).get.optionalUuid should equal(Some(uuid))
 
     update(uuidWithOption)(p =>
       where(p.id === testObject.id)
-      set(p.optionalUuid := None)
+        set (p.optionalUuid := Some(uuid))
     )
-    
-    uuidWithOption.lookup(testObject.id).get.optionalUuid should equal(None)    
+
+    uuidWithOption.lookup(testObject.id).get.optionalUuid should equal(
+      Some(uuid)
+    )
+
+    update(uuidWithOption)(p =>
+      where(p.id === testObject.id)
+        set (p.optionalUuid := None)
+    )
+
+    uuidWithOption.lookup(testObject.id).get.optionalUuid should equal(None)
   }
-  
+
   test("UuidAsId") {
     import TestSchema._
 
@@ -94,7 +107,9 @@ abstract class UuidTests extends SchemaTester with RunTestsInsideTransaction {
 
     testObject.id should equal(uuidAsId.where(_.id === testObject.id).single.id)
 
-    testObject.id should equal(uuidAsId.where(_.id in List(testObject.id)).single.id)
+    testObject.id should equal(
+      uuidAsId.where(_.id in List(testObject.id)).single.id
+    )
 
     val lookup = uuidAsId.lookup(testObject.id)
     lookup.get.id should equal(testObject.id)
@@ -109,8 +124,12 @@ abstract class UuidTests extends SchemaTester with RunTestsInsideTransaction {
     val secondaryObject = new UuidAsForeignKey(primaryObject.id)
     uuidAsForeignKey.insert(secondaryObject)
 
-    secondaryObject.id should equal(uuidAsForeignKey.where(_.id === secondaryObject.id).single.id)
+    secondaryObject.id should equal(
+      uuidAsForeignKey.where(_.id === secondaryObject.id).single.id
+    )
 
-    List(secondaryObject.id) should equal(primaryObject.foreigns.map(_.id).toList)
+    List(secondaryObject.id) should equal(
+      primaryObject.foreigns.map(_.id).toList
+    )
   }
 }

@@ -1,4 +1,3 @@
-
 package org.squeryl
 
 import dsl.ast._
@@ -6,54 +5,61 @@ import internals.ResultSetMapper
 import java.sql.ResultSet
 
 trait Query[R] extends Queryable[R] {
-  
+
   def iterator: Iterator[R]
 
-  protected[squeryl] def invokeYield(rsm: ResultSetMapper, resultSet: ResultSet): R
+  protected[squeryl] def invokeYield(
+      rsm: ResultSetMapper,
+      resultSet: ResultSet
+  ): R
 
   def dumpAst: String
 
-  /**
-   * returns a 'pretty' statement, i.e. values are printed instead of '?'  
-   */
+  /** returns a 'pretty' statement, i.e. values are printed instead of '?'
+    */
   def statement: String
 
   def ast: ExpressionNode
 
-  private [squeryl] def copy(asRoot:Boolean, newUnions: List[(String, Query[R])]): Query[R]
+  private[squeryl] def copy(
+      asRoot: Boolean,
+      newUnions: List[(String, Query[R])]
+  ): Query[R]
 
-  /**
-   * Returns the first row of the query. An exception will be thrown
-   * if the query returns no row or more than one row.
-   */
+  /** Returns the first row of the query. An exception will be thrown if the
+    * query returns no row or more than one row.
+    */
   def single: R = {
     val i = iterator
     val r = i.next()
-    if(i.hasNext)
-      org.squeryl.internals.Utils.throwError("single called on query returning more than one row : \n" + statement)
+    if (i.hasNext)
+      org.squeryl.internals.Utils.throwError(
+        "single called on query returning more than one row : \n" + statement
+      )
     r
   }
 
-  /**
-   * Returns Some(singleRow), None if there are none, throws an exception 
-   * if the query returns more than one row.
-   */
+  /** Returns Some(singleRow), None if there are none, throws an exception if
+    * the query returns more than one row.
+    */
   def singleOption: Option[R] = {
     val i = iterator
-    val res = 
-      if(i.hasNext)
+    val res =
+      if (i.hasNext)
         Some(i.next())
-      else 
+      else
         None
 
-    if(i.hasNext)
-      org.squeryl.internals.Utils.throwError("singleOption called on query returning more than one row : \n" + statement)
+    if (i.hasNext)
+      org.squeryl.internals.Utils.throwError(
+        "singleOption called on query returning more than one row : \n" + statement
+      )
     res
   }
 
   def headOption = {
     val i = iterator
-    if(i.hasNext)
+    if (i.hasNext)
       Some(i.next())
     else
       None
@@ -77,5 +83,5 @@ trait Query[R] extends Queryable[R] {
 
   def page(offset: Int, pageLength: Int): Query[R]
 
-  private [squeryl] def root: Option[Query[R]] = None
+  private[squeryl] def root: Option[Query[R]] = None
 }

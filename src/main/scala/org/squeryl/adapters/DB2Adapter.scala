@@ -1,18 +1,18 @@
-/*******************************************************************************
- * Copyright 2010 Maxime Lévesque
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- ***************************************************************************** */
+/** *****************************************************************************
+  * Copyright 2010 Maxime Lévesque
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+  * use this file except in compliance with the License. You may obtain a copy
+  * of the License at
+  *
+  * http://www.apache.org/licenses/LICENSE-2.0
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+  * License for the specific language governing permissions and limitations
+  * under the License.
+  */
 package org.squeryl.adapters
 
 import org.squeryl.internals.{StatementWriter, DatabaseAdapter}
@@ -34,21 +34,30 @@ class DB2Adapter extends DatabaseAdapter {
 
   override def supportsUnionQueryOptions = false
 
-  override def postCreateTable(t: Table[_], printSinkWhenWriteOnlyMode: Option[String => Unit]) = {
+  override def postCreateTable(
+      t: Table[_],
+      printSinkWhenWriteOnlyMode: Option[String => Unit]
+  ) = {
 
     val sw = new StatementWriter(false, this)
-    sw.write("create sequence ", sequenceName(t), " start with 1 increment by 1 nomaxvalue")
+    sw.write(
+      "create sequence ",
+      sequenceName(t),
+      " start with 1 increment by 1 nomaxvalue"
+    )
 
-    if(printSinkWhenWriteOnlyMode.isEmpty) {
+    if (printSinkWhenWriteOnlyMode.isEmpty) {
       val st = Session.currentSession.connection.createStatement
       st.execute(sw.statement)
-    }
-    else
+    } else
       printSinkWhenWriteOnlyMode.get.apply(sw.statement + ";")
   }
 
   override def postDropTable(t: Table[_]) =
-    execFailSafeExecute("drop sequence " + sequenceName(t), e => e.getErrorCode == -204)
+    execFailSafeExecute(
+      "drop sequence " + sequenceName(t),
+      e => e.getErrorCode == -204
+    )
 
   def sequenceName(t: Table[_]) =
     t.prefixedPrefixedName("s_")
@@ -57,7 +66,8 @@ class DB2Adapter extends DatabaseAdapter {
 
     val o_ = o.asInstanceOf[AnyRef]
 
-    val autoIncPK = t.posoMetaData.fieldsMetaData.find(fmd => fmd.isAutoIncremented)
+    val autoIncPK =
+      t.posoMetaData.fieldsMetaData.find(fmd => fmd.isAutoIncremented)
 
     if (autoIncPK.isEmpty) {
       super.writeInsert(o, t, sw)
@@ -67,7 +77,9 @@ class DB2Adapter extends DatabaseAdapter {
     val f = getInsertableFields(t.posoMetaData.fieldsMetaData)
 
     val colNames = List(autoIncPK.get) ::: f.toList
-    val colVals = List("next value for " + sequenceName(t)) ::: f.map(fmd => writeValue(o_, fmd, sw)).toList
+    val colVals = List("next value for " + sequenceName(t)) ::: f
+      .map(fmd => writeValue(o_, fmd, sw))
+      .toList
 
     sw.write("insert into ")
     sw.write(t.prefixedName)
@@ -84,7 +96,11 @@ class DB2Adapter extends DatabaseAdapter {
     e.getErrorCode == -204
   }
 
-  override def writePaginatedQueryDeclaration(page: () => Option[(Int, Int)], qen: QueryExpressionElements, sw: StatementWriter) = {}
+  override def writePaginatedQueryDeclaration(
+      page: () => Option[(Int, Int)],
+      qen: QueryExpressionElements,
+      sw: StatementWriter
+  ) = {}
 
   override def writeQuery(qen: QueryExpressionElements, sw: StatementWriter) =
     if (qen.page.isEmpty)
@@ -119,7 +135,11 @@ class DB2Adapter extends DatabaseAdapter {
       }
     }
 
-  override def writeConcatOperator(left: ExpressionNode, right: ExpressionNode, sw: StatementWriter) = {
+  override def writeConcatOperator(
+      left: ExpressionNode,
+      right: ExpressionNode,
+      sw: StatementWriter
+  ) = {
     sw.write("(")
     _writeConcatOperand(left, sw)
     sw.write(" ")
@@ -130,22 +150,27 @@ class DB2Adapter extends DatabaseAdapter {
   }
 
   private def _writeConcatOperand(e: ExpressionNode, sw: StatementWriter) = {
-    if (e.isInstanceOf[ConstantTypedExpression[_,_]]) {
-      val c = e.asInstanceOf[ConstantTypedExpression[Any,Any]]
+    if (e.isInstanceOf[ConstantTypedExpression[_, _]]) {
+      val c = e.asInstanceOf[ConstantTypedExpression[Any, Any]]
       sw.write("cast(")
       e.write(sw)
       sw.write(" as varchar(")
       sw.write(c.value.toString.length.toString)
       sw.write("))")
-    }
-    else
+    } else
       e.write(sw)
   }
 
-  override def writeRegexExpression(left: ExpressionNode, pattern: String, sw: StatementWriter) = {
+  override def writeRegexExpression(
+      left: ExpressionNode,
+      pattern: String,
+      sw: StatementWriter
+  ) = {
     // If you are keen enough you can implement a UDF and subclass this method to call out to it.
     // See http://www.ibm.com/developerworks/data/library/techarticle/0301stolze/0301stolze.html for how.
-    throw new UnsupportedOperationException("DB2 does not support a regex scalar function")
+    throw new UnsupportedOperationException(
+      "DB2 does not support a regex scalar function"
+    )
   }
 
 }

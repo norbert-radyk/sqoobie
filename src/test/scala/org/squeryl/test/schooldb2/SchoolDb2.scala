@@ -13,7 +13,8 @@ trait SchoolDb2Object {
 
 object SchoolDb2 extends SchoolDb2
 
-class Professor(val lastName: String, var bossId: Option[Long]=None) extends SchoolDb2Object {
+class Professor(val lastName: String, var bossId: Option[Long] = None)
+    extends SchoolDb2Object {
 
   lazy val courses = SchoolDb2.courseAssignments.left(this)
 }
@@ -30,44 +31,49 @@ class Course(val subjectId: Long) extends SchoolDb2Object {
   lazy val subject = SchoolDb2.subjectToCourses.right(this)
 }
 
-class Student(val firstName: String, val lastName: String) extends SchoolDb2Object {  
-  
+class Student(val firstName: String, val lastName: String)
+    extends SchoolDb2Object {
+
   lazy val courses = SchoolDb2.courseSubscriptions.right(this)
 
   def fullName = compositeKey(firstName, lastName)
 }
 
-class Subject(val name: String, val parentSubjectId: Option[Long]) extends SchoolDb2Object {
-  
+class Subject(val name: String, val parentSubjectId: Option[Long])
+    extends SchoolDb2Object {
+
   lazy val courses = SchoolDb2.subjectToCourses.left(this)
-  
+
   lazy val childSubjects = SchoolDb2.subjectToParentSubject.left(this)
-  
+
   lazy val parentSubject = SchoolDb2.subjectToParentSubject.right(this)
 }
 
-class CourseSubscription(val courseId: Long, val studentId: Long, var grade: Float) extends KeyedEntity[CompositeKey2[Long,Long]] {
+class CourseSubscription(
+    val courseId: Long,
+    val studentId: Long,
+    var grade: Float
+) extends KeyedEntity[CompositeKey2[Long, Long]] {
 
   def id = compositeKey(courseId, studentId)
 }
 
-class CourseAssignment(val courseId: Long, val professorId: Long) extends KeyedEntity[CompositeKey2[Long,Long]] {
+class CourseAssignment(val courseId: Long, val professorId: Long)
+    extends KeyedEntity[CompositeKey2[Long, Long]] {
 
   def id = compositeKey(courseId, professorId)
 }
 
 case class Entry(text: String) extends KeyedEntity[Int] {
- val id:Int = 0
- // entryToComments is a one-to-many relation:
- lazy val comments: OneToMany[Comment] = SchoolDb2.entryToComments.left(this)
+  val id: Int = 0
+  // entryToComments is a one-to-many relation:
+  lazy val comments: OneToMany[Comment] = SchoolDb2.entryToComments.left(this)
 }
 
 case class Comment(text: String, entryId: Int = 0, userId: Int = 0)
-   extends KeyedEntity[Int] {
- val id:Int = 0
+    extends KeyedEntity[Int] {
+  val id: Int = 0
 }
-
-
 
 class ASTConstructionInterferenceA extends KeyedEntity[Long] {
   val id: Long = 0
@@ -82,70 +88,76 @@ class ASTConstructionInterferenceB(val aId: Long) extends KeyedEntity[Long] {
   val field2 = field1
 }
 
-
-
 class SchoolDb2 extends Schema {
 
-  implicit object schoolDbObjectKED extends KeyedEntityDef[SchoolDb2Object,Long] {
-    def getId(a:SchoolDb2Object) = a.id
-    def isPersisted(a:SchoolDb2Object) = a.id > 0
+  implicit object schoolDbObjectKED
+      extends KeyedEntityDef[SchoolDb2Object, Long] {
+    def getId(a: SchoolDb2Object) = a.id
+    def isPersisted(a: SchoolDb2Object) = a.id > 0
     def idPropertyName = "id"
   }
-  
+
   val entries = table[Entry]()
   val comments = table[Comment]("commentz")
 
-  val entryToComments = oneToManyRelation(entries, comments).via(
-    (e,c) => e.id === c.entryId)
-  
+  val entryToComments =
+    oneToManyRelation(entries, comments).via((e, c) => e.id === c.entryId)
+
   val professors = table[Professor]()
 
   val students = table[Student]()
 
-
-  on(students)(s => declare(
-    s.firstName is(indexed),
-    s.lastName defaultsTo("!"),
-    s.fullName is(unique, indexed),
-    columns(s.id, s.firstName, s.lastName) are(indexed)  
-  ))
+  on(students)(s =>
+    declare(
+      s.firstName is (indexed),
+      s.lastName defaultsTo ("!"),
+      s.fullName is (unique, indexed),
+      columns(s.id, s.firstName, s.lastName) are (indexed)
+    )
+  )
 
   val courses = table[Course]()
 
   val subjects = table[Subject]()
 
   val courseAssignments =
-    manyToManyRelation(professors, courses, "CourseAssignmentZ").
-    via[CourseAssignment]((p,c,a) => (p.id === a.professorId, a.courseId === c.id))
+    manyToManyRelation(professors, courses, "CourseAssignmentZ")
+      .via[CourseAssignment]((p, c, a) =>
+        (p.id === a.professorId, a.courseId === c.id)
+      )
 
   val courseSubscriptions =
-    manyToManyRelation(courses, students).
-    via[CourseSubscription]((c,s,cs) => (cs.studentId === s.id, c.id === cs.courseId))
+    manyToManyRelation(courses, students).via[CourseSubscription]((c, s, cs) =>
+      (cs.studentId === s.id, c.id === cs.courseId)
+    )
 
   val subjectToCourses =
-    oneToManyRelation(subjects, courses).
-    via((s,c) => s.id === c.subjectId)
-    
-  val bossToProfessors =
-    oneToManyRelation(professors, professors).
-    via((boss,p) => boss.id === p.bossId)
+    oneToManyRelation(subjects, courses).via((s, c) => s.id === c.subjectId)
 
-    
+  val bossToProfessors =
+    oneToManyRelation(professors, professors).via((boss, p) =>
+      boss.id === p.bossId
+    )
+
   val subjectToParentSubject =
-    oneToManyRelation(subjects, subjects).
-    via((subject,childSubject) => Option(subject.id) === childSubject.parentSubjectId)
- 
-    
+    oneToManyRelation(subjects, subjects).via((subject, childSubject) =>
+      Option(subject.id) === childSubject.parentSubjectId
+    )
+
   // the default constraint for all foreign keys in this schema :
-  override def applyDefaultForeignKeyPolicy(foreignKeyDeclaration: ForeignKeyDeclaration) =
+  override def applyDefaultForeignKeyPolicy(
+      foreignKeyDeclaration: ForeignKeyDeclaration
+  ) =
     foreignKeyDeclaration.constrainReference()
 
-  //now we will redefine some of the foreign key constraints :
-  //if we delete a subject, we want all courses to be deleted
+  // now we will redefine some of the foreign key constraints :
+  // if we delete a subject, we want all courses to be deleted
   subjectToCourses.foreignKeyDeclaration.constrainReference(onDelete.cascade)
 
-  //when a course is deleted, all of the subscriptions will get deleted :
-  courseSubscriptions.leftForeignKeyDeclaration.constrainReference(onDelete.cascade)
+  // when a course is deleted, all of the subscriptions will get deleted :
+  courseSubscriptions.leftForeignKeyDeclaration.constrainReference(
+    onDelete.cascade
+  )
 
   override def drop = {
     Session.cleanupResources
@@ -156,21 +168,23 @@ class SchoolDb2 extends Schema {
   val bs = table[ASTConstructionInterferenceB]()
 
   val aToB =
-    oneToManyRelation(as, bs).
-    via((a, b) => a.id === b.aId)
+    oneToManyRelation(as, bs).via((a, b) => a.id === b.aId)
 
   aToB.foreignKeyDeclaration.unConstrainReference()
 }
 
-abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransaction with QueryTester {
+abstract class SchoolDb2Tests
+    extends SchemaTester
+    with RunTestsInsideTransaction
+    with QueryTester {
   self: DBConnector =>
 
   val schema = new SchoolDb2
-  
+
   import schema._
 
   def seedDataDef() = new {
-    
+
     val professeurTournesol = professors.insert(new Professor("Tournesol"))
     val madProfessor = professors.insert(new Professor("Mad Professor"))
 
@@ -178,15 +192,15 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
     val chemistry = subjects.insert(new Subject("Chemistry", None))
     val physics = subjects.insert(new Subject("Physic", None))
     val computerScience = subjects.insert(new Subject("Computer Science", None))
-    val computationTheory = subjects.insert(new Subject("Computation Theory", Some(computerScience.id)))
-
+    val computationTheory = subjects.insert(
+      new Subject("Computation Theory", Some(computerScience.id))
+    )
 
     val chemistryCourse = courses.insert(new Course(chemistry.id))
     val physicsCourse = courses.insert(new Course(physics.id))
 
     val xiaoJimbao = students.insert(new Student("Xiao", "Jimbao"))
   }
-
 
 //  def testAll = {
 //
@@ -223,7 +237,9 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
     val q: Query[String] =
       from(subjects)(s =>
         where(s.name === "Philosophy")
-          select(&(from(subjects)(s2 => where(s2.name === s.name) select(s2.name))))
+          select (&(
+            from(subjects)(s2 => where(s2.name === s.name) select (s2.name))
+          ))
       )
 
     1 shouldBe q.toList.length
@@ -235,15 +251,17 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
     val q: Query[String] =
       from(subjects)(s =>
         where(
-          s.name === from(subjects)(s2 => where(s2.name === "Philosophy") select(s2.name))
+          s.name === from(subjects)(s2 =>
+            where(s2.name === "Philosophy") select (s2.name)
+          )
         )
-        select(s.name)
+          select (s.name)
       )
 
     1 shouldBe q.toList.length
   }
 
-  test("associate comment"){
+  test("associate comment") {
     val entry = entries.insert(Entry("An entry"))
     val comment = Comment("A single comment")
     entry.comments.associate(comment)
@@ -251,26 +269,24 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
     from(entry.comments)(c => where(c.id === comment.id) select c)
   }
 
-  test("UpdateWithCompositePK"){
+  test("UpdateWithCompositePK") {
     val seedData = seedDataDef()
     import seedData._
 
-    val xiao = {students.lookup(xiaoJimbao.id)
-      
-    }.get
+    val xiao = { students.lookup(xiaoJimbao.id) }.get
 
     val courseSubscription = xiao.courses.assign(chemistryCourse)
 
     courseSubscriptions.insert(courseSubscription)
-    courseSubscription.grade = 95.0F
+    courseSubscription.grade = 95.0f
     courseSubscriptions.update(courseSubscription)
 
     val cs2 = courseSubscriptions.lookup(courseSubscription.id).get
-    
-    95.0F shouldBe cs2.grade
+
+    95.0f shouldBe cs2.grade
   }
 
-  test("Many2ManyAssociationFromLeftSide"){
+  test("Many2ManyAssociationFromLeftSide") {
     val seedData = seedDataDef()
     import seedData._
 
@@ -278,13 +294,13 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
 
     professeurTournesol.courses.associate(physicsCourse)
 
-    val c1 = professeurTournesol.courses.single : Course
+    val c1 = professeurTournesol.courses.single: Course
 
-    c1.id shouldBe  physicsCourse.id
+    c1.id shouldBe physicsCourse.id
 
-    val ca = professeurTournesol.courses.associations.single : CourseAssignment
+    val ca = professeurTournesol.courses.associations.single: CourseAssignment
 
-    ca.courseId shouldBe  physicsCourse.id
+    ca.courseId shouldBe physicsCourse.id
 
     professeurTournesol.courses.dissociateAll shouldBe 1
 
@@ -293,7 +309,7 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
     courseAssignments.Count.toLong shouldBe 0L
   }
 
-  test("Many2ManyAssociationsFromRightSide"){
+  test("Many2ManyAssociationsFromRightSide") {
     val seedData = seedDataDef()
     import seedData._
 
@@ -301,13 +317,13 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
 
     physicsCourse.professors.associate(professeurTournesol)
 
-    val profT = physicsCourse.professors.single : Professor
+    val profT = physicsCourse.professors.single: Professor
 
     professeurTournesol.lastName shouldBe profT.lastName
 
-    val ca = professeurTournesol.courses.associations.single : CourseAssignment
+    val ca = professeurTournesol.courses.associations.single: CourseAssignment
 
-    ca.courseId shouldBe  physicsCourse.id
+    ca.courseId shouldBe physicsCourse.id
 
     physicsCourse.professors.dissociateAll shouldBe 1
 
@@ -316,7 +332,7 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
     courseAssignments.Count.toLong shouldBe 0
   }
 
-  test("OneToMany"){
+  test("OneToMany") {
     val seedData = seedDataDef()
     import seedData._
 
@@ -328,7 +344,11 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
     philosophy.courses.associate(philosophyCourse2PMWednesday)
     philosophy.courses.associate(philosophyCourse3PMFriday)
 
-    philosophy.courses.map(_.id).toSet shouldBe Set(philosophyCourse10AMWednesday.id, philosophyCourse2PMWednesday.id, philosophyCourse3PMFriday.id)
+    philosophy.courses.map(_.id).toSet shouldBe Set(
+      philosophyCourse10AMWednesday.id,
+      philosophyCourse2PMWednesday.id,
+      philosophyCourse3PMFriday.id
+    )
     philosophy.name shouldBe philosophyCourse2PMWednesday.subject.single.name
 
     // verify that a reassociation does an update and not an insert :
@@ -340,16 +360,19 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
 
     // verify that the reassociation worked, which means that
     // 1) : the set of philosophy.courses was reduced properly
-    philosophy.courses.map(_.id).toSet shouldBe Set(philosophyCourse10AMWednesday.id, philosophyCourse2PMWednesday.id)
+    philosophy.courses.map(_.id).toSet shouldBe Set(
+      philosophyCourse10AMWednesday.id,
+      philosophyCourse2PMWednesday.id
+    )
 
     // 2) philosophyCourse3PMFriday.subject points to the proper subject
     computationTheory.name shouldBe philosophyCourse3PMFriday.subject.single.name
   }
 
-  test("CompositeEquality"){
+  test("CompositeEquality") {
     val seedData = seedDataDef()
     import seedData._
-    
+
     val a = physicsCourse.professors.associate(professeurTournesol)
 
     val qA = courseAssignments.lookup(compositeKey(a.courseId, a.professorId))
@@ -358,8 +381,8 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
 
     val qA2 =
       from(courseAssignments)(ca =>
-        where(ca.id ===(a.courseId, a.professorId))
-        select(ca)
+        where(ca.id === (a.courseId, a.professorId))
+          select (ca)
       )
 
     _existsAndEquals(qA2.headOption, a)
@@ -373,15 +396,18 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
     qA3.Count.toLong shouldBe 0L
   }
 
-  private def _existsAndEquals(oca: Option[CourseAssignment], ca: CourseAssignment) = {
+  private def _existsAndEquals(
+      oca: Option[CourseAssignment],
+      ca: CourseAssignment
+  ) = {
 
-    if(oca.isEmpty)
+    if (oca.isEmpty)
       org.squeryl.internals.Utils.throwError("query returned no rows")
 
     ca.id shouldBe oca.get.id
   }
 
-  test("UniquenessConstraint"){
+  test("UniquenessConstraint") {
     val seedData = seedDataDef()
     import seedData._
 
@@ -395,26 +421,26 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
     val s = Session.currentSession
 
     val sp: Option[Savepoint] =
-      if(s.databaseAdapter.failureOfStatementRequiresRollback)
+      if (s.databaseAdapter.failureOfStatementRequiresRollback)
         Some(s.connection.setSavepoint)
       else
         None
-    
+
     try {
       physicsCourse.professors.associate(professeurTournesol)
-    }
-    catch {
-      case e:RuntimeException =>
+    } catch {
+      case e: RuntimeException =>
         exceptionThrown = true
         sp.foreach(s.connection.rollback(_))
     }
 
-    if(! exceptionThrown)
-      org.squeryl.internals.Utils.throwError("testUniquenessConstraint" + " failed, unique constraint violation occurred")
+    if (!exceptionThrown)
+      org.squeryl.internals.Utils.throwError(
+        "testUniquenessConstraint" + " failed, unique constraint violation occurred"
+      )
 
     courseAssignments.Count.toLong shouldBe 1
   }
-
 
 //  test("Issue68"){
 //    //https://github.com/squeryl/squeryl/issues#issue/68
@@ -432,61 +458,62 @@ abstract class SchoolDb2Tests extends SchemaTester with RunTestsInsideTransactio
 //    passed('testIssue68)
 //  }
 
-  test("InFromSet"){
+  test("InFromSet") {
     val set = Set("foo", "bar", "baz")
-    from(entries)(e => where(e.text.in(set))select(e)).toList
+    from(entries)(e => where(e.text.in(set)) select (e)).toList
   }
 
-  test("InFromSeq"){
+  test("InFromSeq") {
     val set = Set("foo", "bar", "baz").toSeq
-    from(entries)(e => where(e.text.in(set))select(e)).toList
+    from(entries)(e => where(e.text.in(set)) select (e)).toList
   }
-  
+
   test("Inequality with query on right hand side", SingleTestRun) {
     val seedData = seedDataDef()
     import seedData._
-   
+
     val xiao = students.lookup(xiaoJimbao.id).get
 
     val courseSubscription = xiao.courses.assign(chemistryCourse)
 
     courseSubscriptions.insert(courseSubscription)
-    courseSubscription.grade = 95.0F
+    courseSubscription.grade = 95.0f
     courseSubscriptions.update(courseSubscription)
 
     val cs2 = courseSubscriptions.lookup(courseSubscription.id).get
-    
-    95.0F shouldBe cs2.grade
-    
+
+    95.0f shouldBe cs2.grade
+
     from(courseSubscriptions)(p => compute(avg(p.grade)))
-   
-    val belowOrEqualToAvg = 
+
+    val belowOrEqualToAvg =
       from(courseSubscriptions)(p =>
         where(p.grade lte from(courseSubscriptions)(p => compute(avg(p.grade))))
-        select(p)
+          select (p)
       ).toList
-      
+
     assert(belowOrEqualToAvg.size == 1)
-    
-    val belowAvg = 
+
+    val belowAvg =
       from(courseSubscriptions)(p =>
         where(p.grade lt from(courseSubscriptions)(p => compute(avg(p.grade))))
-        select(p)
+          select (p)
       ).toList
-      
+
     assert(belowAvg.isEmpty)
   }
-  
-  test ("#73 relations with Option[] on one side of the equality expression blow up") {
+
+  test(
+    "#73 relations with Option[] on one side of the equality expression blow up"
+  ) {
 
     seedDataDef()
-        
+
     val cs = subjects.where(_.name === "Computer Science").single
-    
+
     val compTheory = cs.childSubjects.single
-    
+
     assert(compTheory.name == "Computation Theory")
-    
+
   }
 }
-

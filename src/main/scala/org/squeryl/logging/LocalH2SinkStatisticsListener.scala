@@ -15,36 +15,41 @@ object LocalH2SinkStatisticsListener {
   def initialize(schemaName: String, overwrite: Boolean, workingDir: String) = {
     Class.forName("org.h2.Driver")
 
-    val file = new java.io.File(workingDir, schemaName + ".h2.db").getCanonicalFile
+    val file =
+      new java.io.File(workingDir, schemaName + ".h2.db").getCanonicalFile
 
-    if(file.exists && overwrite)
+    if (file.exists && overwrite)
       file.delete
 
     val s = new Session(
-      java.sql.DriverManager.getConnection("jdbc:h2:" + workingDir + "/" + schemaName, "sa", ""),
-      new H2Adapter)
+      java.sql.DriverManager
+        .getConnection("jdbc:h2:" + workingDir + "/" + schemaName, "sa", ""),
+      new H2Adapter
+    )
 
-    if((!file.exists) || overwrite)
+    if ((!file.exists) || overwrite)
       using(s) {
         StatsSchema.create
       }
-      
+
     val l = new LocalH2SinkStatisticsListener(s)
     l
   }
 }
 
-class LocalH2SinkStatisticsListener(val h2Session: AbstractSession) extends StatisticsListener {
+class LocalH2SinkStatisticsListener(val h2Session: AbstractSession)
+    extends StatisticsListener {
 
   private[this] var _closed = false
 
-  private[this] val _queue = new java.util.concurrent.ArrayBlockingQueue[()=>Unit](1024, false)
+  private[this] val _queue =
+    new java.util.concurrent.ArrayBlockingQueue[() => Unit](1024, false)
 
   private[this] val _worker = new Thread {
 
     override def run() = {
       h2Session.bindToCurrentThread
-      while(!_closed) {
+      while (!_closed) {
         val op = _queue.take
         op()
       }
@@ -55,24 +60,35 @@ class LocalH2SinkStatisticsListener(val h2Session: AbstractSession) extends Stat
 
   def shutdown = _closed = true
 
-  private def _pushOp(op: =>Unit) =
-    if(!_closed) {
+  private def _pushOp(op: => Unit) =
+    if (!_closed) {
       _queue.put(() => op)
-    }
-    else
-      throw new IllegalStateException("'LocalH2SinkStatisticsListener has been shutdown.")
+    } else
+      throw new IllegalStateException(
+        "'LocalH2SinkStatisticsListener has been shutdown."
+      )
 
   def generateStatSummary(staticHtmlFile: java.io.File, n: Int) = _pushOp {
     BarChartRenderer.generateStatSummary(staticHtmlFile, n)
   }
 
-  def queryExecuted(se: StatementInvocationEvent) =_pushOp {
+  def queryExecuted(se: StatementInvocationEvent) = _pushOp {
     StatsSchema.recordStatementInvocation(se)
     h2Session.connection.commit
   }
 
-  def resultSetIterationEnded(invocationId: String, iterationEndTime: Long, rowCount: Int, iterationCompleted: Boolean) = _pushOp {
-    StatsSchema.recordEndOfIteration(invocationId, iterationEndTime: Long, rowCount: Int, iterationCompleted: Boolean)
+  def resultSetIterationEnded(
+      invocationId: String,
+      iterationEndTime: Long,
+      rowCount: Int,
+      iterationCompleted: Boolean
+  ) = _pushOp {
+    StatsSchema.recordEndOfIteration(
+      invocationId,
+      iterationEndTime: Long,
+      rowCount: Int,
+      iterationCompleted: Boolean
+    )
     h2Session.connection.commit
   }
 

@@ -5,9 +5,9 @@ import org.squeryl.adapters.MSSQLServer
 import org.squeryl.framework.DBConnector
 import org.squeryl.Session
 
-trait MSSQL_Connection extends DBConnector{
-  def sessionCreator() : Option[() => Session] = {
-    if(config.hasProps("mssql.connectionString")) {
+trait MSSQL_Connection extends DBConnector {
+  def sessionCreator(): Option[() => Session] = {
+    if (config.hasProps("mssql.connectionString")) {
       Class.forName("net.sourceforge.jtds.jdbc.Driver")
 
       Some(() => {
@@ -17,15 +17,19 @@ trait MSSQL_Connection extends DBConnector{
         c.setAutoCommit(false)
         Session.create(c, new MSSQLServer)
       })
-    }else{
+    } else {
       None
     }
   }
 }
 
 class MSSQL_UuidTests extends UuidTests with MSSQL_Connection
-class MSSQL_NestedLeftOuterJoinTest extends NestedLeftOuterJoinTest with MSSQL_Connection
-class MSSQL_SchoolDbMutableRelations extends mutablerelations.SchoolDb2MetableRelations with MSSQL_Connection
+class MSSQL_NestedLeftOuterJoinTest
+    extends NestedLeftOuterJoinTest
+    with MSSQL_Connection
+class MSSQL_SchoolDbMutableRelations
+    extends mutablerelations.SchoolDb2MetableRelations
+    with MSSQL_Connection
 class MSSQL_TransactionTests extends TransactionTests with MSSQL_Connection
 class MSSQL_SchoolDb2 extends schooldb2.SchoolDb2Tests with MSSQL_Connection
 class MSSQL_SchoolDb extends schooldb.SchoolDbTestRun with MSSQL_Connection {
@@ -42,4 +46,6 @@ class MSSQL_LeftJoinTest extends LeftJoinTest with MSSQL_Connection
 //  def dbSpecificSelectNow: String = "SELECT CURRENT_TIMESTAMP"
 //}
 
-class MSSQL_LogicalBooleanObjTests extends LogicalBooleanObjTests with MSSQL_Connection
+class MSSQL_LogicalBooleanObjTests
+    extends LogicalBooleanObjTests
+    with MSSQL_Connection

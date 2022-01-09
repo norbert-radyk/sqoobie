@@ -1,4 +1,3 @@
-
 package org.squeryl
 
 import dsl.ast.LogicalBoolean
@@ -12,13 +11,15 @@ trait Queryable[T] {
 
   private[squeryl] var inhibited = false
 
-  private[squeryl] def give(resultSetMapper: ResultSetMapper, rs: ResultSet) : T
+  private[squeryl] def give(resultSetMapper: ResultSetMapper, rs: ResultSet): T
 
-  def where(whereClauseFunctor: T => LogicalBoolean)(implicit dsl: QueryDsl): Query[T] = {
+  def where(
+      whereClauseFunctor: T => LogicalBoolean
+  )(implicit dsl: QueryDsl): Query[T] = {
     import dsl._
     from(this)(q0 =>
       dsl.where(whereClauseFunctor(q0))
-      select(q0)
+        select (q0)
     )
   }
 }
