@@ -19,10 +19,7 @@ class DB2Adapter extends DatabaseAdapter {
 
   override def supportsUnionQueryOptions = false
 
-  override def postCreateTable(
-      t: Table[_],
-      printSinkWhenWriteOnlyMode: Option[String => Unit]
-  ) = {
+  override def postCreateTable(t: Table[_], printSinkWhenWriteOnlyMode: Option[String => Unit]) = {
 
     val sw = new StatementWriter(false, this)
     sw.write(

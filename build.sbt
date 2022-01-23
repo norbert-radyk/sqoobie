@@ -4,7 +4,7 @@ description := "An attempt to re-purpose type-safe Squeryl query DSL for Doobie 
 
 version := "0.1.0-SNAPSHOT"
 
-scalaVersion := "2.13.7"
+scalaVersion := "2.13.8"
 
 organization := "sqoobie"
 

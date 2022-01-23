@@ -12,7 +12,7 @@ trait DatabaseAdapter {
   class Zip[T](val element: T, val isLast: Boolean, val isFirst: Boolean)
 
   class ZipIterable[T](iterable: Iterable[T]) {
-    val count = iterable.size
+    val count: Int = iterable.size
     def foreach[U](f: Zip[T] => U): Unit = {
       var c = 1
       for (i <- iterable) {
@@ -21,20 +21,18 @@ trait DatabaseAdapter {
       }
     }
 
-    def zipi = this
+    def zipi: ZipIterable[T] = this
   }
 
-  implicit def zipIterable[T](i: Iterable[T]) = new ZipIterable(i)
+  implicit def zipIterable[T](i: Iterable[T]): ZipIterable[T] = new ZipIterable(i)
 
   def writeQuery(qen: QueryExpressionElements, sw: StatementWriter): Unit =
     writeQuery(qen, sw, inverseOrderBy = false, None)
 
-  /** Should we verify that when we delete by primary key the JDBC driver
-    * reports that no more than one row was affected? MonetDB in particular
-    * seems to act badly here
+  /** Should we verify that when we delete by primary key the JDBC driver reports that no more than one row was affected? MonetDB in particular seems to act
+    * badly here
     * @return
-    *   true if we should throw an exception if the driver reports more than 1
-    *   affected row
+    *   true if we should throw an exception if the driver reports more than 1 affected row
     */
   def verifyDeleteByPK: Boolean = true
 
@@ -194,13 +192,13 @@ trait DatabaseAdapter {
       isForUpdate: () => Boolean,
       qen: QueryExpressionElements,
       sw: StatementWriter
-  ) =
+  ): Unit =
     if (isForUpdate()) {
       sw.write("for update")
       sw.pushPendingNextLine
     }
 
-  def writeEndOfFromHint(qen: QueryExpressionElements, sw: StatementWriter) = {}
+  def writeEndOfFromHint(qen: QueryExpressionElements, sw: StatementWriter): Unit = {}
 
   def writePaginatedQueryDeclaration(
       page: () => Option[(Int, Int)],
@@ -218,7 +216,7 @@ trait DatabaseAdapter {
   def writeJoin(
       queryableExpressionNode: QueryableExpressionNode,
       sw: StatementWriter
-  ) = {
+  ): Unit = {
     sw.write(queryableExpressionNode.joinKind.get._1)
     sw.write(" ")
     sw.write(queryableExpressionNode.joinKind.get._2)
@@ -232,30 +230,29 @@ trait DatabaseAdapter {
 
   def intTypeDeclaration = "int"
   def stringTypeDeclaration = "varchar"
-  def stringTypeDeclaration(length: Int) = "varchar(" + length + ")"
+  def stringTypeDeclaration(length: Int): String = "varchar(" + length + ")"
   def booleanTypeDeclaration = "boolean"
   def doubleTypeDeclaration = "double"
   def dateTypeDeclaration = "date"
   def longTypeDeclaration = "bigint"
   def floatTypeDeclaration = "real"
   def bigDecimalTypeDeclaration = "decimal"
-  def bigDecimalTypeDeclaration(precision: Int, scale: Int) =
-    "decimal(" + precision + "," + scale + ")"
+  def bigDecimalTypeDeclaration(precision: Int, scale: Int): String = "decimal(" + precision + "," + scale + ")"
   def timestampTypeDeclaration = "timestamp"
   def binaryTypeDeclaration = "binary"
   def uuidTypeDeclaration = "char(36)"
-  def intArrayTypeDeclaration = intTypeDeclaration + "[]"
-  def longArrayTypeDeclaration = longTypeDeclaration + "[]"
-  def doubleArrayTypeDeclaration = doubleTypeDeclaration + "[]"
+  def intArrayTypeDeclaration: String = intTypeDeclaration + "[]"
+  def longArrayTypeDeclaration: String = longTypeDeclaration + "[]"
+  def doubleArrayTypeDeclaration: String = doubleTypeDeclaration + "[]"
 
-  def stringArrayTypeDeclaration = stringTypeDeclaration + "[]"
-  def jdbcIntArrayCreationType = intTypeDeclaration
-  def jdbcLongArrayCreationType = longTypeDeclaration
-  def jdbcDoubleArrayCreationType = doubleTypeDeclaration
-  def jdbcStringArrayCreationType = stringTypeDeclaration
+  def stringArrayTypeDeclaration: String = stringTypeDeclaration + "[]"
+  def jdbcIntArrayCreationType: String = intTypeDeclaration
+  def jdbcLongArrayCreationType: String = longTypeDeclaration
+  def jdbcDoubleArrayCreationType: String = doubleTypeDeclaration
+  def jdbcStringArrayCreationType: String = stringTypeDeclaration
 
   final def arrayCreationType(ptype: Class[_]): String = {
-    val rv = ptype.getName() match {
+    val rv = ptype.getName match {
       case "java.lang.Integer" => jdbcIntArrayCreationType
       case "java.lang.Double"  => jdbcDoubleArrayCreationType
       case "java.lang.Long"    => jdbcLongArrayCreationType
@@ -346,16 +343,14 @@ trait DatabaseAdapter {
 
   def supportsCommonTableExpressions = true
 
-  def writeCreateTable[T](t: Table[T], sw: StatementWriter, schema: Schema) = {
+  def writeCreateTable[T](t: Table[T], sw: StatementWriter, schema: Schema): Unit = {
 
     sw.write("create table ")
     sw.write(quoteName(t.prefixedName))
     sw.write(" (\n")
     sw.writeIndented {
       sw.writeLinesWithSeparator(
-        t.posoMetaData.fieldsMetaData.map(fmd =>
-          writeColumnDeclaration(fmd, fmd.declaredAsPrimaryKeyInSchema, schema)
-        ),
+        t.posoMetaData.fieldsMetaData.map(fmd => writeColumnDeclaration(fmd, fmd.declaredAsPrimaryKeyInSchema, schema)),
         ","
       )
     }
@@ -373,19 +368,13 @@ trait DatabaseAdapter {
     }
   }
 
-  def setParamInto(s: PreparedStatement, p: StatementParam, i: Int) =
+  def setParamInto(s: PreparedStatement, p: StatementParam, i: Int): Unit =
     p match {
       case ConstantStatementParam(constantTypedExpression) =>
-        // val t = jdbcTypeConstantFor(constantTypedExpression.jdbcClass)
-        s.setObject(
-          i,
-          convertToJdbcValue(constantTypedExpression.nativeJdbcValue)
-        )
+        s.setObject(i, convertToJdbcValue(constantTypedExpression.nativeJdbcValue))
       case FieldStatementParam(o, fieldMetaData) =>
-        // val t = jdbcTypeConstantFor(fieldMetaData.nativeJdbcType)
-        // s.setObject(i, convertToJdbcValue(fieldMetaData.get(o)))
         s.setObject(i, convertToJdbcValue(fieldMetaData.getNativeJdbcValue(o)))
-      case ConstantExpressionNodeListParam(v, constantExpressionNodeList) =>
+      case ConstantExpressionNodeListParam(v, _) =>
         s.setObject(i, convertToJdbcValue(v))
     }
 
@@ -413,10 +402,8 @@ trait DatabaseAdapter {
 
   def failureOfStatementRequiresRollback = false
 
-  /** Some methods like 'dropTable' issue their statement, and will silence the
-    * exception. For example dropTable will silence when
-    * isTableDoesNotExistException(theExceptionThrown). It must be used
-    * carefully, and an exception should not be silenced unless identified.
+  /** Some methods like 'dropTable' issue their statement, and will silence the exception. For example dropTable will silence when
+    * isTableDoesNotExistException(theExceptionThrown). It must be used carefully, and an exception should not be silenced unless identified.
     */
   protected def execFailSafeExecute(
       sw: StatementWriter,
@@ -426,7 +413,7 @@ trait DatabaseAdapter {
     val c = s.connection
     val stat = createStatement(c)
     val sp =
-      if (failureOfStatementRequiresRollback) Some(c.setSavepoint)
+      if (failureOfStatementRequiresRollback) Some(c.setSavepoint())
       else None
 
     try {
@@ -436,7 +423,7 @@ trait DatabaseAdapter {
     } catch {
       case e: SQLException =>
         if (silenceException(e))
-          sp.foreach(c.rollback(_))
+          sp.foreach(c.rollback)
         else
           throw SquerylSQLException(
             "Exception while executing statement,\n" +
@@ -445,71 +432,54 @@ trait DatabaseAdapter {
             e
           )
     } finally {
-      sp.foreach(c.releaseSavepoint(_))
+      sp.foreach(c.releaseSavepoint)
       Utils.close(stat)
     }
   }
 
-  implicit def string2StatementWriter(s: String) = {
+  implicit def string2StatementWriter(s: String): StatementWriter = {
     val sw = new StatementWriter(this)
     sw.write(s)
     sw
   }
 
-  protected def exec[A](s: AbstractSession, sw: StatementWriter)(
-      block: Iterable[StatementParam] => A
-  ): A = {
+  protected def exec[A](s: AbstractSession, sw: StatementWriter)(block: Iterable[StatementParam] => A): A =
     _exec[A](s, sw, block, sw.params)
-  }
 
-  protected def prepareStatement(
-      conn: Connection,
-      statement: String
-  ): PreparedStatement =
+  protected def prepareStatement(conn: Connection, statement: String): PreparedStatement =
     conn.prepareStatement(statement)
 
   protected def createStatement(conn: Connection): Statement =
     conn.createStatement()
 
-  def executeQuery(s: AbstractSession, sw: StatementWriter) = exec(s, sw) {
-    params =>
-      val st = prepareStatement(s.connection, sw.statement)
-      fillParamsInto(params, st)
-      (st.executeQuery, st)
+  def executeQuery(s: AbstractSession, sw: StatementWriter): (ResultSet, PreparedStatement) = exec(s, sw) { params =>
+    val st = prepareStatement(s.connection, sw.statement)
+    fillParamsInto(params, st)
+    (st.executeQuery, st)
   }
 
-  def executeUpdate(
-      s: AbstractSession,
-      sw: StatementWriter
-  ): (Int, PreparedStatement) = exec(s, sw) { params =>
+  def executeUpdate(s: AbstractSession, sw: StatementWriter): (Int, PreparedStatement) = exec(s, sw) { params =>
     val st = prepareStatement(s.connection, sw.statement)
     fillParamsInto(params, st)
     (st.executeUpdate, st)
   }
 
-  def executeUpdateAndCloseStatement(
-      s: AbstractSession,
-      sw: StatementWriter
-  ): Int = exec(s, sw) { params =>
+  def executeUpdateAndCloseStatement(s: AbstractSession, sw: StatementWriter): Int = exec(s, sw) { params =>
     val st = prepareStatement(s.connection, sw.statement)
     fillParamsInto(params, st)
     try {
       st.executeUpdate
     } finally {
-      st.close
+      st.close()
     }
   }
 
-  def executeUpdateForInsert(
-      s: AbstractSession,
-      sw: StatementWriter,
-      ps: PreparedStatement
-  ) = exec(s, sw) { params =>
+  def executeUpdateForInsert(s: AbstractSession, sw: StatementWriter, ps: PreparedStatement): Int = exec(s, sw) { params =>
     fillParamsInto(params, ps)
     ps.executeUpdate
   }
 
-  protected def getInsertableFields(fmd: Iterable[FieldMetaData]) =
+  protected def getInsertableFields(fmd: Iterable[FieldMetaData]): Iterable[FieldMetaData] =
     fmd.filter(fmd => !fmd.isAutoIncremented && fmd.isInsertable)
 
   def writeInsert[T](o: T, t: Table[T], sw: StatementWriter): Unit = {
@@ -525,9 +495,8 @@ trait DatabaseAdapter {
     sw.write(f.map(fmd => writeValue(o_, fmd, sw)).mkString("(", ",", ")"))
   }
 
-  /** Converts field instances so they can be fed, and understood by JDBC will
-    * not do conversion from None/Some, so @arg r should be a java primitive
-    * type or a CustomType
+  /** Converts field instances so they can be fed, and understood by JDBC will not do conversion from None/Some, so @arg r should be a java primitive type or a
+    * CustomType
     */
   def convertToJdbcValue(r: AnyRef): AnyRef = {
 
@@ -543,8 +512,7 @@ trait DatabaseAdapter {
     }
 
     v match {
-      case x: java.util.Date
-          if !v.isInstanceOf[java.sql.Date] && !v.isInstanceOf[Timestamp] =>
+      case x: java.util.Date if !v.isInstanceOf[java.sql.Date] && !v.isInstanceOf[Timestamp] =>
         v = new java.sql.Date(x.getTime)
       case x: scala.math.BigDecimal =>
         v = x.bigDecimal
@@ -557,10 +525,6 @@ trait DatabaseAdapter {
 
     v
   }
-
-//  see comment in def convertFromBooleanForJdbc
-//    if(v.isInstanceOf[java.lang.Boolean])
-//      v = convertFromBooleanForJdbc(v)
 
   // TODO: move to StatementWriter ?
   protected def writeValue(
@@ -579,33 +543,19 @@ trait DatabaseAdapter {
       "?"
     }
 
-//  protected def writeValue(sw: StatementWriter, v: AnyRef):String =
-//    if(sw.isForDisplay) {
-//      if(v != null)
-//        v.toString
-//      else
-//        "null"
-//    }
-//    else {
-//      sw.addParam(convertToJdbcValue(v))
-//      "?"
-//    }
-
-  /** When @arg printSinkWhenWriteOnlyMode is not None, the adapter will not
-    * execute any statement, but only silently give it to the String=>Unit
-    * closure
+  /** When @arg printSinkWhenWriteOnlyMode is not None, the adapter will not execute any statement, but only silently give it to the String=>Unit closure
     */
   def postCreateTable(
       t: Table[_],
       printSinkWhenWriteOnlyMode: Option[String => Unit]
-  ) = {}
+  ): Unit = {}
 
-  def postDropTable(t: Table[_]) = {}
+  def postDropTable(t: Table[_]): Unit = {}
 
-  def createSequenceName(fmd: FieldMetaData) =
+  def createSequenceName(fmd: FieldMetaData): String =
     "s_" + fmd.parentMetaData.viewOrTable.name + "_" + fmd.columnName
 
-  def writeConcatFunctionCall(fn: FunctionNode, sw: StatementWriter) = {
+  def writeConcatFunctionCall(fn: FunctionNode, sw: StatementWriter): Unit = {
     sw.write(fn.name)
     sw.write("(")
     sw.writeNodesWithSeparator(fn.args, ",", newLineAfterSeparator = false)
@@ -619,7 +569,7 @@ trait DatabaseAdapter {
       t: Table[T],
       sw: StatementWriter,
       checkOCC: Boolean
-  ) = {
+  ): Unit = {
 
     val o_ = o.asInstanceOf[AnyRef]
 
@@ -693,7 +643,7 @@ trait DatabaseAdapter {
       t: Table[T],
       whereClause: Option[ExpressionNode],
       sw: StatementWriter
-  ) = {
+  ): Unit = {
 
     sw.write("delete from ")
     sw.write(quoteName(t.prefixedName))
@@ -707,9 +657,8 @@ trait DatabaseAdapter {
     }
   }
 
-  /** unused at the moment, since all jdbc drivers adhere to the standard that :
-    * 1 == true, false otherwise. If a new driver would not adhere to this, the
-    * call can be uncommented in method convertToJdbcValue
+  /** unused at the moment, since all jdbc drivers adhere to the standard that : 1 == true, false otherwise. If a new driver would not adhere to this, the call
+    * can be uncommented in method convertToJdbcValue
     */
   def convertFromBooleanForJdbc(b: Boolean): Boolean = b
 
@@ -723,7 +672,7 @@ trait DatabaseAdapter {
   def convertToUuidForJdbc(rs: ResultSet, i: Int): UUID =
     UUID.fromString(rs.getString(i))
 
-  def writeUpdate(t: Table[_], us: UpdateStatement, sw: StatementWriter) = {
+  def writeUpdate(t: Table[_], us: UpdateStatement, sw: StatementWriter): Unit = {
 
     val colsToUpdate = us.columns.iterator
 
@@ -780,7 +729,7 @@ trait DatabaseAdapter {
       left: ExpressionNode,
       right: ExpressionNode,
       sw: StatementWriter
-  ) = {
+  ): Unit = {
     sw.write(nvlToken)
     sw.write("(")
     left.write(sw)
@@ -789,15 +738,14 @@ trait DatabaseAdapter {
     sw.write(")")
   }
 
-  /** Figures out from the SQLException (ex.: vendor specific error code) if
-    * it's cause is a NOT NULL constraint violation
+  /** Figures out from the SQLException (ex.: vendor specific error code) if it's cause is a NOT NULL constraint violation
     */
   def isNotNullConstraintViolation(e: SQLException): Boolean = false
 
-  def foreignKeyConstraintName(foreignKeyTable: Table[_], idWithinSchema: Int) =
+  def foreignKeyConstraintName(foreignKeyTable: Table[_], idWithinSchema: Int): String =
     foreignKeyTable.name + "FK" + idWithinSchema
 
-  def viewAlias(vn: ViewExpressionNode[_]) =
+  def viewAlias(vn: ViewExpressionNode[_]): String =
     if (vn.view.prefix.isDefined)
       vn.view.prefix.get + "_" + vn.view.name + vn.uniqueId.get
     else
@@ -811,7 +759,7 @@ trait DatabaseAdapter {
       referentialAction1: Option[ReferentialAction],
       referentialAction2: Option[ReferentialAction],
       fkId: Int
-  ) = {
+  ): String = {
 
     val sb = new java.lang.StringBuilder(256)
 
@@ -840,10 +788,10 @@ trait DatabaseAdapter {
     sb.toString
   }
 
-  protected def currenSession =
+  protected def currenSession: AbstractSession =
     Session.currentSession
 
-  def writeDropForeignKeyStatement(foreignKeyTable: Table[_], fkName: String) =
+  def writeDropForeignKeyStatement(foreignKeyTable: Table[_], fkName: String): String =
     "alter table " + quoteName(
       foreignKeyTable.prefixedName
     ) + " drop constraint " + quoteName(fkName)
@@ -853,31 +801,22 @@ trait DatabaseAdapter {
       fkName: String,
       session: AbstractSession
   ): Unit =
-    execFailSafeExecute(
-      writeDropForeignKeyStatement(foreignKeyTable, fkName),
-      e => true
-    )
+    execFailSafeExecute(writeDropForeignKeyStatement(foreignKeyTable, fkName), _ => true)
 
   def isTableDoesNotExistException(e: SQLException): Boolean
 
   def supportsForeignKeyConstraints = true
 
-  def writeDropTable(tableName: String) =
+  def writeDropTable(tableName: String): String =
     "drop table " + quoteName(tableName)
 
-  def dropTable(t: Table[_]) =
-    execFailSafeExecute(
-      writeDropTable(t.prefixedName),
-      e => isTableDoesNotExistException(e)
-    )
+  def dropTable(t: Table[_]): Unit =
+    execFailSafeExecute(writeDropTable(t.prefixedName), e => isTableDoesNotExistException(e))
 
-  def writeCompositePrimaryKeyConstraint(
-      t: Table[_],
-      cols: Iterable[FieldMetaData]
-  ) =
+  def writeCompositePrimaryKeyConstraint(t: Table[_], cols: Iterable[FieldMetaData]): String =
     writeUniquenessConstraint(t, cols)
 
-  def writeUniquenessConstraint(t: Table[_], cols: Iterable[FieldMetaData]) = {
+  def writeUniquenessConstraint(t: Table[_], cols: Iterable[FieldMetaData]): String = {
     // ALTER TABLE TEST ADD CONSTRAINT NAME_UNIQUE UNIQUE(NAME)
     val sb = new java.lang.StringBuilder(256)
 
@@ -886,16 +825,12 @@ trait DatabaseAdapter {
     sb.append(" add constraint ")
     sb.append(quoteName(t.prefixedName + "CPK"))
     sb.append(" unique(")
-    sb.append(cols.map(_.columnName).map(quoteName(_)).mkString(","))
+    sb.append(cols.map(_.columnName).map(quoteName).mkString(","))
     sb.append(")")
     sb.toString
   }
 
-  def writeRegexExpression(
-      left: ExpressionNode,
-      pattern: String,
-      sw: StatementWriter
-  ) = {
+  def writeRegexExpression(left: ExpressionNode, pattern: String, sw: StatementWriter): Unit = {
     sw.write("(")
     left.write(sw)
     sw.write(" ~ ?)")
@@ -910,31 +845,23 @@ trait DatabaseAdapter {
       left: ExpressionNode,
       right: ExpressionNode,
       sw: StatementWriter
-  ) = {
+  ): Unit = {
     val binaryOpNode = new BinaryOperatorNode(left, right, "||")
     binaryOpNode.doWrite(sw)
   }
 
-//  /**
-//   * @nameOfCompositeKey when not None, the column group forms a composite key, 'nameOfCompositeKey' can be used
-//   * as part of the name to create a more meaningfull name for the constraint
-//   */
-//  def writeUniquenessConstraint(columnDefs: collection.Seq[FieldMetaData], nameOfCompositeKey: Option[String]) = ""
-
   /** @param name
-    *   the name specified in the Schema, when not None, it must be used as the
-    *   name
+    *   the name specified in the Schema, when not None, it must be used as the name
     * @param nameOfCompositeKey
-    *   when not None, the column group forms a composite key,
-    *   'nameOfCompositeKey' can be used as part of the name to create a more
-    *   meaningfull name for the constraint, when 'name' is None
+    *   when not None, the column group forms a composite key, 'nameOfCompositeKey' can be used as part of the name to create a more meaningfull name for the
+    *   constraint, when 'name' is None
     */
   def writeIndexDeclaration(
       columnDefs: collection.Seq[FieldMetaData],
       name: Option[String],
       nameOfCompositeKey: Option[String],
       isUnique: Boolean
-  ) = {
+  ): String = {
     val sb = new java.lang.StringBuilder(256)
     sb.append("create ")
 
@@ -963,15 +890,14 @@ trait DatabaseAdapter {
     sb.append(quoteName(tableName))
 
     sb.append(
-      columnDefs.map(_.columnName).map(quoteName(_)).mkString(" (", ",", ")")
+      columnDefs.map(_.columnName).map(quoteName).mkString(" (", ",", ")")
     )
 
     sb.toString
   }
 
-  /** This will create an probabilistically unique string of length no longer
-    * than 11 chars, it can be used to create "almost unique" names where
-    * uniqueness is not an absolute requirement, is not ,
+  /** This will create an probabilistically unique string of length no longer than 11 chars, it can be used to create "almost unique" names where uniqueness is
+    * not an absolute requirement, is not ,
     */
   def generateAlmostUniqueSuffixWithHash(s: String): String = {
     val a32 = new java.util.zip.Adler32
@@ -979,20 +905,20 @@ trait DatabaseAdapter {
     a32.getValue.toHexString
   }
 
-  def quoteIdentifier(s: String) = s
+  def quoteIdentifier(s: String): String = s
 
-  def quoteName(s: String) = s.split('.').map(quoteIdentifier(_)).mkString(".")
+  def quoteName(s: String): String = s.split('.').map(quoteIdentifier).mkString(".")
 
-  def fieldAlias(n: QueryableExpressionNode, fse: FieldSelectElement) =
+  def fieldAlias(n: QueryableExpressionNode, fse: FieldSelectElement): String =
     n.alias + "_" + fse.fieldMetaData.columnName
 
   def aliasExport(
       parentOfTarget: QueryableExpressionNode,
       target: SelectElement
-  ) =
+  ): String =
     parentOfTarget.alias + "_" + target.aliasSegment
 
-  def writeSelectElementAlias(se: SelectElement, sw: StatementWriter) = {
+  def writeSelectElementAlias(se: SelectElement, sw: StatementWriter): Unit = {
     val a = se.aliasSegment
 //    if(a.length > 30)
 //      org.squeryl.internals.Utils.throwError("Oracle Bust : " + a)
@@ -1040,42 +966,7 @@ trait DatabaseAdapter {
     decl
   }
 
-  /*
-  def writeCastInvocation(e: TypedExpression[_,_], sw: StatementWriter) = {
-    sw.write("cast(")
-    e.write(sw)
-
-    val dbSpecificType = databaseTypeFor(e.mapper.jdbcClass)
-
-    sw.write(" as ")
-    sw.write(dbSpecificType)
-    sw.write(")")
-  }
-
-  def writeCaseStatement(toMatch: Option[ExpressionNode], cases: Iterable[(ExpressionNode, TypedExpression[_,_])], otherwise: TypedExpression[_,_], sw: StatementWriter) = {
-
-    sw.write("(case ")
-    toMatch.foreach(_.write(sw))
-    sw.indent
-    sw.nextLine
-
-    for(c <- cases) {
-      sw.write("when ")
-      c._1.write(sw)
-      sw.write(" then ")
-      writeCastInvocation(c._2, sw)
-      sw.nextLine
-    }
-
-    sw.write("else ")
-    writeCastInvocation(otherwise,sw)
-    sw.nextLine
-    sw.unindent
-    sw.write("end)")
-  }
-   */
-
-  def jdbcTypeConstantFor(c: Class[_]) =
+  def jdbcTypeConstantFor(c: Class[_]): Int =
     c.getCanonicalName match {
       case "java.lang.String"      => Types.VARCHAR
       case "java.math.BigDecimal"  => Types.DECIMAL

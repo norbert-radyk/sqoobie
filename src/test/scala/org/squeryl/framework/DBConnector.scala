@@ -6,9 +6,7 @@ trait DBConnector {
 
   def sessionCreator(): Option[() => AbstractSession]
 
-  lazy val config = {
-    new FileConfigReader("org.squeryl.tests.cfg")
-  }
+  lazy val config: FileConfigReader = new FileConfigReader("org.squeryl.tests.cfg")
 
 }
 
@@ -19,7 +17,7 @@ class FileConfigReader(fileName: String) {
   val fis = new java.io.FileInputStream(file)
   val props = new java.util.Properties
   props.load(fis)
-  fis.close
+  fis.close()
 
   def getProp(key: String): String =
     Option(props.getProperty(key)).getOrElse("missing key: " + key)

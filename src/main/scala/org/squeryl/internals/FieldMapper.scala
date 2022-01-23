@@ -8,7 +8,6 @@ import java.util.{Date, UUID}
 import scala.collection.mutable
 
 trait FieldMapper {
-  outer =>
 
   private[this] val registry = new mutable.HashMap[Class[_], FieldAttributesBasedOnType[_]]
 
@@ -350,7 +349,6 @@ trait FieldMapper {
   }
 
   protected def makeMapper(fa0: JdbcMapper[_, _]): Object {
-    val fa: JdbcMapper[AnyRef, AnyRef]
 
     def map(rs: ResultSet, i: Int): AnyRef
 
