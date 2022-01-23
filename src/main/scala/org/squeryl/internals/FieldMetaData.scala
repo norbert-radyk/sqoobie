@@ -1,17 +1,17 @@
 package org.squeryl.internals
 
 import org.json4s.scalap.scalasig._
-import org.squeryl.Session
 import org.squeryl.annotations.{Column, ColumnBase}
 import org.squeryl.customtypes.CustomType
 import org.squeryl.dsl.CompositeKey
 import org.squeryl.dsl.ast.ConstantTypedExpression
+import org.squeryl.{Schema, Session}
 
 import java.lang.annotation.Annotation
 import java.lang.reflect.{Field, Method, Type, _}
 import java.sql.ResultSet
 import scala.annotation.tailrec
-import scala.collection.mutable.{HashMap, HashSet}
+import scala.collection.mutable
 
 class FieldMetaData(
     val parentMetaData: PosoMetaData[_],
@@ -33,7 +33,7 @@ class FieldMetaData(
     val sampleValue: Any
 ) {
 
-  def nativeJdbcType =
+  def nativeJdbcType: Class[_] =
     this.schema.fieldMapper.nativeJdbcTypeFor(wrappedFieldType)
 
   /** None if this FieldMetaData is not an enumeration,
@@ -46,7 +46,7 @@ class FieldMetaData(
       case _                          => None
     }
 
-  def canonicalEnumerationValueFor(id: Int) =
+  def canonicalEnumerationValueFor(id: Int): Enumeration#Value =
     if (sampleValue == null)
       org.squeryl.internals.Utils.throwError(
         "classes with Enumerations must have a zero param constructor that assigns a sample to the enumeration field"
@@ -60,9 +60,9 @@ class FieldMetaData(
     * instantiation, so it can safely be considered immutable (read only) by the
     * columnAttributes accessor
     */
-  private[this] val _columnAttributes = new HashSet[ColumnAttribute]
+  private[this] val _columnAttributes = new mutable.HashSet[ColumnAttribute]
 
-  private[squeryl] def _clearColumnAttributes = {
+  private[squeryl] def _clearColumnAttributes: Unit = {
     _columnAttributes.clear()
   }
 
@@ -72,7 +72,7 @@ class FieldMetaData(
   /** In some circumstances (like in the test suite) a Schema instance must run
     * on multiple database types, this Map keeps the sequence names 'per schema'
     */
-  private[this] val _sequenceNamePerDBAdapter = new HashMap[Class[_], String]
+  private[this] val _sequenceNamePerDBAdapter = new mutable.HashMap[Class[_], String]
 
   def sequenceName: String = {
 
@@ -153,10 +153,10 @@ class FieldMetaData(
     .collectFirst { case d: DBType => d.explicit }
     .getOrElse(false)
 
-  def isTransient =
+  def isTransient: Boolean =
     _columnAttributes.exists(_.isInstanceOf[IsTransient])
 
-  def isCustomType = customTypeFactory.isDefined
+  def isCustomType: Boolean = customTypeFactory.isDefined
 
   /** @return
     *   the length defined in org.squeryl.annotations.Column.length if it is
@@ -181,11 +181,11 @@ class FieldMetaData(
     else
       columnAnnotation.get.scale
 
-  def schema = parentMetaData.schema
+  def schema: Schema = parentMetaData.schema
 
   /** The name of the database column
     */
-  def columnName =
+  def columnName: String =
     if (columnAnnotation.isEmpty) {
       val nameDefinedInSchema = _columnAttributes.collectFirst {
         case n: Named => n.name
@@ -206,10 +206,10 @@ class FieldMetaData(
         res
     }
 
-  protected def createResultSetHandler =
+  protected def createResultSetHandler: (ResultSet, Int) => AnyRef =
     this.schema.fieldMapper.resultSetHandlerFor(wrappedFieldType)
 
-  val resultSetHandler = createResultSetHandler
+  val resultSetHandler: (ResultSet, Int) => AnyRef = createResultSetHandler
 
   if (!isCustomType)
     assert(
@@ -218,13 +218,13 @@ class FieldMetaData(
         fieldType.getName + " != " + wrappedFieldType.getName
     )
 
-  override def toString =
+  override def toString: String =
     parentMetaData.clasz.getSimpleName + "." + columnName + ":" + displayType
 
-  def isStringType =
+  def isStringType: Boolean =
     wrappedFieldType.isAssignableFrom(classOf[String])
 
-  def displayType =
+  def displayType: String =
     if (isOption)
       "Option[" + fieldType.getName + "]"
     else
@@ -243,20 +243,20 @@ class FieldMetaData(
     * omitting primaryKey here has no effect, it is equivalent as
     * id.is(primaryKey,autoIncremented) )) </pre>
     */
-  def declaredAsPrimaryKeyInSchema =
+  def declaredAsPrimaryKeyInSchema: Boolean =
     columnAttributes.exists(_.isInstanceOf[PrimaryKey])
 
-  def isAutoIncremented =
+  def isAutoIncremented: Boolean =
     columnAttributes.exists(_.isInstanceOf[AutoIncremented])
 
   /** Inserts will only set values for a column if isInsertable is true
     */
-  def isInsertable =
+  def isInsertable: Boolean =
     !columnAttributes.exists(_.isInstanceOf[Uninsertable])
 
   /** Updates will only set values for a column if isUpdatable is true
     */
-  def isUpdatable =
+  def isUpdatable: Boolean =
     !columnAttributes.exists(_.isInstanceOf[Unupdatable])
 
   /** gets the value of the field from the object. Note that it will unwrap
@@ -281,7 +281,7 @@ class FieldMetaData(
       } else
         res
     } catch {
-      case e: IllegalArgumentException =>
+      case _: IllegalArgumentException =>
         org.squeryl.internals.Utils.throwError(
           wrappedFieldType.getName + " used on " + o.getClass.getName
         )
@@ -292,7 +292,7 @@ class FieldMetaData(
     schema.fieldMapper.nativeJdbcValueFor(wrappedFieldType, r)
   }
 
-  def setFromResultSet(target: AnyRef, rs: ResultSet, index: Int) = {
+  def setFromResultSet(target: AnyRef, rs: ResultSet, index: Int): Unit = {
     val v = resultSetHandler(rs, index)
     set(target, v)
   }
@@ -351,7 +351,7 @@ class FieldMetaData(
   private def _getFromField(o: AnyRef) =
     field.get.get(o)
 
-  private def _setWithField(target: AnyRef, v: AnyRef) =
+  private def _setWithField(target: AnyRef, v: AnyRef): Unit =
     field.get.set(target, v)
 }
 
@@ -379,7 +379,7 @@ object FieldMetaData {
 
   private[this] val EmptyObjectList = List.empty[Object]
 
-  val factory = new FieldMetaDataFactory {
+  val factory: FieldMetaDataFactory = new FieldMetaDataFactory {
 
     def createPosoFactory(posoMetaData: PosoMetaData[_]): () => AnyRef =
       () => {
@@ -398,14 +398,10 @@ object FieldMetaData {
         ),
         sampleInstance4OptionTypeDeduction: AnyRef,
         isOptimisticCounter: Boolean
-    ) = {
+    ): FieldMetaData = {
 
       val fieldMapper = parentMetaData.schema.fieldMapper
-
-      val field = property._1
-      val getter = property._2
-      val setter = property._3
-      val annotations = property._4
+      val (field, getter, setter, annotations) = property
 
       val colAnnotation = annotations.collectFirst { case a: ColumnBase => a }
 
@@ -498,7 +494,7 @@ object FieldMetaData {
         v match {
           case Some(None) => true
           case null       => true
-          case a: Any     => false
+          case _          => false
         }
 
       if (deductionFailed) {
@@ -610,7 +606,7 @@ object FieldMetaData {
     })
   }
 
-  def defaultFieldLength(fieldType: Class[_], fmd: FieldMetaData) = {
+  def defaultFieldLength(fieldType: Class[_], fmd: FieldMetaData): Int = {
     if (classOf[String].isAssignableFrom(fieldType))
       fmd.schema.defaultLengthOfString
     else if (
@@ -625,7 +621,7 @@ object FieldMetaData {
   }
 
   def optionTypeFromScalaSig(member: Member): Option[Class[_]] = {
-    val scalaSigOption = ScalaSigParser.parse(member.getDeclaringClass())
+    val scalaSigOption = ScalaSigParser.parse(member.getDeclaringClass)
     scalaSigOption flatMap { scalaSig =>
       val result = scalaSig.symbols
         .filter { sym =>

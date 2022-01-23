@@ -24,7 +24,7 @@ libraryDependencies ++= Seq(
   "org.postgresql" % "postgresql" % "42.3.1" % "provided",
   "net.sourceforge.jtds" % "jtds" % "1.3.1" % "provided",
   "org.apache.derby" % "derby" % "10.15.2.0" % "provided",
-  "org.json4s" %% "json4s-scalap" % "3.6.12",
+  "org.json4s" %% "json4s-scalap" % "4.0.2",
   "org.scala-lang.modules" %% "scala-xml" % "2.0.1",
   "org.xerial" % "sqlite-jdbc" % "3.36.0.3" % "test",
   "org.scalatest" %% "scalatest" % "3.2.10" % "test"
