@@ -23,7 +23,7 @@ libraryDependencies ++= Seq(
   "mysql" % "mysql-connector-java" % "8.0.27" % "provided",
   "org.postgresql" % "postgresql" % "42.3.1" % "provided",
   "net.sourceforge.jtds" % "jtds" % "1.3.1" % "provided",
-  "org.apache.derby" % "derby" % "10.11.1.1" % "provided",
+  "org.apache.derby" % "derby" % "10.15.2.0" % "provided",
   "org.json4s" %% "json4s-scalap" % "3.6.12",
   "org.scala-lang.modules" %% "scala-xml" % "2.0.1",
   "org.xerial" % "sqlite-jdbc" % "3.36.0.3" % "test",
