@@ -1,20 +1,18 @@
 package org.squeryl.adapters
 
-import org.squeryl.{Session, Table}
 import org.squeryl.dsl.ast._
+import org.squeryl.internals.{ConstantStatementParam, DatabaseAdapter, FieldMetaData, StatementWriter}
+import org.squeryl.{InternalFieldMapper, Session, Table}
+
 import java.sql.SQLException
-import collection.Set
-import collection.immutable.List
-import collection.mutable.HashSet
-import org.squeryl.internals.{FieldMetaData, StatementWriter, DatabaseAdapter}
-import org.squeryl.internals.ConstantStatementParam
-import org.squeryl.InternalFieldMapper
+import scala.collection.immutable.List
+import scala.collection.{Set, mutable}
 
 class OracleAdapter extends DatabaseAdapter {
 
   override def intTypeDeclaration = "number"
   override def stringTypeDeclaration = "varchar2"
-  override def stringTypeDeclaration(length: Int) = "varchar2(" + length + ")"
+  override def stringTypeDeclaration(length: Int): String = "varchar2(" + length + ")"
   override def booleanTypeDeclaration = "number(1)"
   override def doubleTypeDeclaration = "double precision"
   override def longTypeDeclaration = "number"
@@ -28,7 +26,7 @@ class OracleAdapter extends DatabaseAdapter {
   override def postCreateTable(
       t: Table[_],
       printSinkWhenWriteOnlyMode: Option[String => Unit]
-  ) = {
+  ): Unit = {
 
     val autoIncrementedFields =
       t.posoMetaData.fieldsMetaData.filter(_.isAutoIncremented)
@@ -50,23 +48,20 @@ class OracleAdapter extends DatabaseAdapter {
     }
   }
 
-  override def postDropTable(t: Table[_]) = {
+  override def postDropTable(t: Table[_]): Unit = {
 
     val autoIncrementedFields =
       t.posoMetaData.fieldsMetaData.filter(_.isAutoIncremented)
 
-    for (fmd <- autoIncrementedFields)
-      execFailSafeExecute(
-        "drop sequence " + fmd.sequenceName,
-        e => e.getErrorCode == 2289
-      )
+    for (fmd <- autoIncrementedFields) {
+      val sw = new StatementWriter(this)
+      sw.write("drop sequence " + fmd.sequenceName)
+      execFailSafeExecute(sw, e => e.getErrorCode == 2289)
+    }
   }
 
-  override def createSequenceName(fmd: FieldMetaData) = {
-
-    val prefix =
-      "s_" + fmd.columnName.take(6) + "_" + fmd.parentMetaData.viewOrTable.name
-        .take(10)
+  override def createSequenceName(fmd: FieldMetaData): String = {
+    val prefix = "s_" + fmd.columnName.take(6) + "_" + fmd.parentMetaData.viewOrTable.name.take(10)
 
     // prefix is no longer than 19, we will pad it with a suffix no longer than 11 :
     val shrunkName = prefix +
@@ -104,13 +99,13 @@ class OracleAdapter extends DatabaseAdapter {
     sw.write(colVals.mkString("(", ",", ")"))
   }
 
-  override def writeConcatFunctionCall(fn: FunctionNode, sw: StatementWriter) =
+  override def writeConcatFunctionCall(fn: FunctionNode, sw: StatementWriter): Unit =
     sw.writeNodesWithSeparator(fn.args, " || ", newLineAfterSeparator = false)
 
   override def writeJoin(
       queryableExpressionNode: QueryableExpressionNode,
       sw: StatementWriter
-  ) = {
+  ): Unit = {
     sw.write(queryableExpressionNode.joinKind.get._1)
     sw.write(" ")
     sw.write(queryableExpressionNode.joinKind.get._2)
@@ -126,9 +121,9 @@ class OracleAdapter extends DatabaseAdapter {
       page: () => Option[(Int, Int)],
       qen: QueryExpressionElements,
       sw: StatementWriter
-  ) = {}
+  ): Unit = {}
 
-  override def writeQuery(qen: QueryExpressionElements, sw: StatementWriter) =
+  override def writeQuery(qen: QueryExpressionElements, sw: StatementWriter): Unit =
     if (qen.page.isEmpty)
       super.writeQuery(qen, sw)
     else {
@@ -161,10 +156,10 @@ class OracleAdapter extends DatabaseAdapter {
       }
     }
 
-  override def isTableDoesNotExistException(e: SQLException) =
+  override def isTableDoesNotExistException(e: SQLException): Boolean =
     e.getErrorCode == 942
 
-  def legalOracleSuffixChars =
+  def legalOracleSuffixChars: List[Char] =
     OracleAdapter.legalOracleSuffixChars
 
   def paddingPossibilities(start: String, padLength: Int): Iterable[String] =
@@ -196,9 +191,7 @@ class OracleAdapter extends DatabaseAdapter {
     for (p <- possibilities if !scope.contains(p))
       return p
 
-    if (
-      s.length == padLength
-    ) // at this point 's' is completely 'random like', not helpful to add it in the error message
+    if (s.length == padLength) // at this point 's' is completely 'random like', not helpful to add it in the error message
       throw new CouldNotShrinkIdentifierException
 
     makeUniqueInScope(s, scope, padLength + 1)
@@ -214,31 +207,29 @@ class OracleAdapter extends DatabaseAdapter {
       else
         s
     } catch {
-      case e: CouldNotShrinkIdentifierException =>
-        org.squeryl.internals.Utils
-          .throwError("could not make a unique identifier with '" + s + "'")
+      case _: CouldNotShrinkIdentifierException =>
+        org.squeryl.internals.Utils.throwError("could not make a unique identifier with '" + s + "'")
     }
 
   def shrinkTo30AndPreserveUniquenessInScope(
       identifier: String,
-      scope: HashSet[String]
-  ) =
+      scope: mutable.HashSet[String]
+  ): String =
     if (identifier.length <= 29)
       identifier
     else {
       val res = makeUniqueInScope(identifier.substring(0, 30), scope)
       scope.add(res)
-      // println(identifier + "----->" + res)
       res
     }
 
-  override def writeSelectElementAlias(se: SelectElement, sw: StatementWriter) =
+  override def writeSelectElementAlias(se: SelectElement, sw: StatementWriter): Unit =
     sw.write(shrinkTo30AndPreserveUniquenessInScope(se.aliasSegment, sw.scope))
 
   override def foreignKeyConstraintName(
       foreignKeyTable: Table[_],
       idWithinSchema: Int
-  ) = {
+  ): String = {
     val name = super.foreignKeyConstraintName(foreignKeyTable, idWithinSchema)
     val r = shrinkTo30AndPreserveUniquenessInScope(
       name,
@@ -251,7 +242,7 @@ class OracleAdapter extends DatabaseAdapter {
       left: ExpressionNode,
       pattern: String,
       sw: StatementWriter
-  ) = {
+  ): Unit = {
     sw.write(" REGEXP_LIKE(")
     left.write(sw)
     sw.write(",?)")
@@ -262,17 +253,17 @@ class OracleAdapter extends DatabaseAdapter {
     )
   }
 
-  override def fieldAlias(n: QueryableExpressionNode, fse: FieldSelectElement) =
+  override def fieldAlias(n: QueryableExpressionNode, fse: FieldSelectElement): String =
     "f" + fse.uniqueId.get
 
   override def aliasExport(
       parentOfTarget: QueryableExpressionNode,
       target: SelectElement
-  ) =
+  ): String =
     // parentOfTarget.alias + "_" + target.aliasSegment
     "f" + target.actualSelectElement.id
 
-  override def viewAlias(vn: ViewExpressionNode[_]) =
+  override def viewAlias(vn: ViewExpressionNode[_]): String =
     "t" + vn.uniqueId.get
   /*
   override def writeCastInvocation(e: TypedExpression[_,_], sw: StatementWriter) = {
@@ -295,6 +286,6 @@ class OracleAdapter extends DatabaseAdapter {
 
 object OracleAdapter {
 
-  val legalOracleSuffixChars =
+  val legalOracleSuffixChars: List[Char] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789".toCharArray.toList
 }

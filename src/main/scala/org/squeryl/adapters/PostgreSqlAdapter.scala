@@ -8,21 +8,19 @@ import org.squeryl.{Session, Table}
 
 class PostgreSqlAdapter extends DatabaseAdapter {
 
-  /** NB: You can override `usePostgresSequenceNamingScheme` to return true in a
-    * child class to change the sequence naming behavior to align with the
-    * default postgresql scheme.
+  /** NB: You can override `usePostgresSequenceNamingScheme` to return true in a child class to change the sequence naming behavior to align with the default
+    * postgresql scheme.
     */
   def usePostgresSequenceNamingScheme: Boolean = false
 
   override def intTypeDeclaration = "integer"
   override def stringTypeDeclaration = "varchar"
-  override def stringTypeDeclaration(length: Int) = "varchar(" + length + ")"
+  override def stringTypeDeclaration(length: Int): String = s"varchar($length)"
   override def booleanTypeDeclaration = "boolean"
   override def doubleTypeDeclaration = "double precision"
   override def longTypeDeclaration = "bigint"
   override def bigDecimalTypeDeclaration = "numeric"
-  override def bigDecimalTypeDeclaration(precision: Int, scale: Int) =
-    "numeric(" + precision + "," + scale + ")"
+  override def bigDecimalTypeDeclaration(precision: Int, scale: Int): String = s"numeric($precision,$scale)"
   override def binaryTypeDeclaration = "bytea"
   override def uuidTypeDeclaration = "uuid"
 
@@ -31,16 +29,10 @@ class PostgreSqlAdapter extends DatabaseAdapter {
   override def jdbcDoubleArrayCreationType = "float8"
   override def jdbcStringArrayCreationType = "varchar"
 
-  override def foreignKeyConstraintName(
-      foreignKeyTable: Table[_],
-      idWithinSchema: Int
-  ) =
+  override def foreignKeyConstraintName(foreignKeyTable: Table[_], idWithinSchema: Int): String =
     foreignKeyTable.name + "FK" + idWithinSchema
 
-  override def postCreateTable(
-      t: Table[_],
-      printSinkWhenWriteOnlyMode: Option[String => Unit]
-  ) = {
+  override def postCreateTable(t: Table[_], printSinkWhenWriteOnlyMode: Option[String => Unit]): Unit = {
 
     val autoIncrementedFields =
       t.posoMetaData.fieldsMetaData.filter(_.isAutoIncremented)
@@ -57,7 +49,7 @@ class PostgreSqlAdapter extends DatabaseAdapter {
     }
   }
 
-  def sequenceName(t: Table[_]) =
+  def sequenceName(t: Table[_]): String =
     if (usePostgresSequenceNamingScheme) {
       // This is compatible with the default postgresql sequence naming scheme.
       val autoIncPK =
@@ -68,7 +60,7 @@ class PostgreSqlAdapter extends DatabaseAdapter {
       t.prefixedPrefixedName("seq_")
     }
 
-  override def createSequenceName(fmd: FieldMetaData) =
+  override def createSequenceName(fmd: FieldMetaData): String =
     if (usePostgresSequenceNamingScheme) {
       // This is compatible with the default postgresql sequence naming scheme.
       fmd.parentMetaData.viewOrTable.name + "_" + fmd.columnName + "_seq"
@@ -77,7 +69,7 @@ class PostgreSqlAdapter extends DatabaseAdapter {
       super.createSequenceName(fmd)
     }
 
-  override def writeConcatFunctionCall(fn: FunctionNode, sw: StatementWriter) =
+  override def writeConcatFunctionCall(fn: FunctionNode, sw: StatementWriter): Unit =
     sw.writeNodesWithSeparator(fn.args, " || ", newLineAfterSeparator = false)
 
   override def writeInsert[T](o: T, t: Table[T], sw: StatementWriter): Unit = {
@@ -107,8 +99,7 @@ class PostgreSqlAdapter extends DatabaseAdapter {
     sw.write(colVals.mkString("(", ",", ")"))
   }
 
-  /** In the case custom DB type used it is beneficial to explicitly cast value
-    * to its type, because it invokes proper cast function. For example, it is
+  /** In the case custom DB type used it is beneficial to explicitly cast value to its type, because it invokes proper cast function. For example, it is
     * possible to insert Scala String into a DB ENUM using dbType.
     */
   override protected def writeValue(
@@ -125,47 +116,36 @@ class PostgreSqlAdapter extends DatabaseAdapter {
 
   override def supportsAutoIncrementInColumnDeclaration: Boolean = false
 
-  override def isTableDoesNotExistException(e: SQLException) =
+  override def isTableDoesNotExistException(e: SQLException): Boolean =
     e.getSQLState.equals("42P01")
 
-  override def writeCompositePrimaryKeyConstraint(
-      t: Table[_],
-      cols: Iterable[FieldMetaData]
-  ) = {
-    // alter table TableName add primary key (col1, col2) ;
-    val sb = new java.lang.StringBuilder(256)
-    sb.append("alter table ")
-    sb.append(quoteName(t.prefixedName))
-    sb.append(" add primary key (")
-    sb.append(cols.map(_.columnName).map(quoteName(_)).mkString(","))
-    sb.append(")")
-    sb.toString
+  override def writeCompositePrimaryKeyConstraint(t: Table[_], cols: Iterable[FieldMetaData]): String = {
+    val tableName = quoteName(t.prefixedName)
+    val columns = cols.map(column => quoteName(column.columnName)).mkString(",")
+    s"alter table $tableName add primary key ($columns)"
   }
 
-  override def writeDropForeignKeyStatement(
-      foreignKeyTable: Table[_],
-      fkName: String
-  ) =
-    "alter table " + quoteName(
-      foreignKeyTable.prefixedName
-    ) + " drop constraint " + quoteName(fkName)
+  override def writeDropForeignKeyStatement(foreignKeyTable: Table[_], fkName: String): String = {
+    val tableName = quoteName(foreignKeyTable.prefixedName)
+    val constraintName = quoteName(fkName)
+    s"alter table $tableName drop constraint $constraintName"
+  }
 
   override def failureOfStatementRequiresRollback = true
 
-  override def postDropTable(t: Table[_]) = {
+  override def postDropTable(t: Table[_]): Unit = {
 
     val autoIncrementedFields =
       t.posoMetaData.fieldsMetaData.filter(_.isAutoIncremented)
 
     for (fmd <- autoIncrementedFields) {
-      execFailSafeExecute(
-        "drop sequence " + quoteName(fmd.sequenceName),
-        e => e.getSQLState.equals("42P01")
-      )
+      val sw = new StatementWriter(this)
+      sw.write("drop sequence " + quoteName(fmd.sequenceName))
+      execFailSafeExecute(sw, e => e.getSQLState.equals("42P01"))
     }
   }
 
-  override def quoteIdentifier(s: String) =
+  override def quoteIdentifier(s: String): String =
     List("\"", s.replace("\"", "\"\""), "\"").mkString
 
   override def convertFromUuidForJdbc(u: UUID): AnyRef = u

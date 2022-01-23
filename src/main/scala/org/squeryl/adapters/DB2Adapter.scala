@@ -19,7 +19,7 @@ class DB2Adapter extends DatabaseAdapter {
 
   override def supportsUnionQueryOptions = false
 
-  override def postCreateTable(t: Table[_], printSinkWhenWriteOnlyMode: Option[String => Unit]) = {
+  override def postCreateTable(t: Table[_], printSinkWhenWriteOnlyMode: Option[String => Unit]): Unit = {
 
     val sw = new StatementWriter(false, this)
     sw.write(
@@ -35,13 +35,13 @@ class DB2Adapter extends DatabaseAdapter {
       printSinkWhenWriteOnlyMode.get.apply(sw.statement + ";")
   }
 
-  override def postDropTable(t: Table[_]) =
-    execFailSafeExecute(
-      "drop sequence " + sequenceName(t),
-      e => e.getErrorCode == -204
-    )
+  override def postDropTable(t: Table[_]): Unit = {
+    val sw = new StatementWriter(this)
+    sw.write("drop sequence " + sequenceName(t))
+    execFailSafeExecute(sw, e => e.getErrorCode == -204)
+  }
 
-  def sequenceName(t: Table[_]) =
+  def sequenceName(t: Table[_]): String =
     t.prefixedPrefixedName("s_")
 
   override def writeInsert[T](o: T, t: Table[T], sw: StatementWriter): Unit = {
@@ -71,10 +71,10 @@ class DB2Adapter extends DatabaseAdapter {
     sw.write(colVals.mkString("(", ",", ")"))
   }
 
-  override def writeConcatFunctionCall(fn: FunctionNode, sw: StatementWriter) =
+  override def writeConcatFunctionCall(fn: FunctionNode, sw: StatementWriter): Unit =
     sw.writeNodesWithSeparator(fn.args, " || ", newLineAfterSeparator = false)
 
-  override def isTableDoesNotExistException(e: SQLException) = {
+  override def isTableDoesNotExistException(e: SQLException): Boolean = {
     e.getErrorCode == -204
   }
 
@@ -82,9 +82,9 @@ class DB2Adapter extends DatabaseAdapter {
       page: () => Option[(Int, Int)],
       qen: QueryExpressionElements,
       sw: StatementWriter
-  ) = {}
+  ): Unit = {}
 
-  override def writeQuery(qen: QueryExpressionElements, sw: StatementWriter) =
+  override def writeQuery(qen: QueryExpressionElements, sw: StatementWriter): Unit =
     if (qen.page.isEmpty)
       super.writeQuery(qen, sw)
     else {
@@ -121,7 +121,7 @@ class DB2Adapter extends DatabaseAdapter {
       left: ExpressionNode,
       right: ExpressionNode,
       sw: StatementWriter
-  ) = {
+  ): Unit = {
     sw.write("(")
     _writeConcatOperand(left, sw)
     sw.write(" ")
@@ -131,7 +131,7 @@ class DB2Adapter extends DatabaseAdapter {
     sw.write(")")
   }
 
-  private def _writeConcatOperand(e: ExpressionNode, sw: StatementWriter) = {
+  private def _writeConcatOperand(e: ExpressionNode, sw: StatementWriter): Unit = {
     if (e.isInstanceOf[ConstantTypedExpression[_, _]]) {
       val c = e.asInstanceOf[ConstantTypedExpression[Any, Any]]
       sw.write("cast(")
@@ -147,7 +147,7 @@ class DB2Adapter extends DatabaseAdapter {
       left: ExpressionNode,
       pattern: String,
       sw: StatementWriter
-  ) = {
+  ): Unit = {
     // If you are keen enough you can implement a UDF and subclass this method to call out to it.
     // See http://www.ibm.com/developerworks/data/library/techarticle/0301stolze/0301stolze.html for how.
     throw new UnsupportedOperationException(

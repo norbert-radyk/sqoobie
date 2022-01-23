@@ -9,22 +9,20 @@ import java.util.UUID
 
 trait DatabaseAdapter {
 
-  class Zip[T](val element: T, val isLast: Boolean, val isFirst: Boolean)
+  case class Zip[T](element: T, isLast: Boolean, isFirst: Boolean)
 
   class ZipIterable[T](iterable: Iterable[T]) {
     val count: Int = iterable.size
     def foreach[U](f: Zip[T] => U): Unit = {
       var c = 1
       for (i <- iterable) {
-        f(new Zip(i, c == count, c == 1))
+        f(Zip(i, c == count, c == 1))
         c += 1
       }
     }
-
-    def zipi: ZipIterable[T] = this
   }
 
-  implicit def zipIterable[T](i: Iterable[T]): ZipIterable[T] = new ZipIterable(i)
+  def zipIterable[T](i: Iterable[T]): ZipIterable[T] = new ZipIterable(i)
 
   def writeQuery(qen: QueryExpressionElements, sw: StatementWriter): Unit =
     writeQuery(qen, sw, inverseOrderBy = false, None)
@@ -52,7 +50,7 @@ trait DatabaseAdapter {
 
     if (supportsCommonTableExpressions && qen.commonTableExpressions.nonEmpty) {
       sw.write("With")
-      for (z <- qen.commonTableExpressions.zipi) {
+      for (z <- new ZipIterable(qen.commonTableExpressions)) {
         sw.write(" ")
         writeCteReference(sw, z.element)
         sw.write(" As ")
@@ -87,7 +85,7 @@ trait DatabaseAdapter {
 
     if (!qen.isJoinForm) {
       sw.writeIndented {
-        for (z <- qen.tableExpressions.zipi) {
+        for (z <- new ZipIterable(qen.tableExpressions)) {
           z.element.write(sw)
           sw.write(" ")
           sw.write(sw.quoteName(z.element.alias))
@@ -112,7 +110,7 @@ trait DatabaseAdapter {
       sw.write(sw.quoteName(firstJoinExpr.alias))
       sw.nextLine
 
-      for (z <- restOfJoinExpr.zipi) {
+      for (z <- new ZipIterable(restOfJoinExpr)) {
         writeJoin(z.element, sw)
         if (z.isLast)
           sw.unindent
@@ -437,7 +435,7 @@ trait DatabaseAdapter {
     }
   }
 
-  implicit def string2StatementWriter(s: String): StatementWriter = {
+  private def string2StatementWriter(s: String): StatementWriter = {
     val sw = new StatementWriter(this)
     sw.write(s)
     sw
@@ -526,7 +524,6 @@ trait DatabaseAdapter {
     v
   }
 
-  // TODO: move to StatementWriter ?
   protected def writeValue(
       o: AnyRef,
       fmd: FieldMetaData,
@@ -681,7 +678,7 @@ trait DatabaseAdapter {
     sw.write(" set")
     sw.indent
     sw.nextLine
-    for (z <- us.values.zipi) {
+    for (z <- new ZipIterable(us.values)) {
       val col = colsToUpdate.next()
       sw.write(quoteName(col.columnName))
       sw.write(" = ")
@@ -801,7 +798,7 @@ trait DatabaseAdapter {
       fkName: String,
       session: AbstractSession
   ): Unit =
-    execFailSafeExecute(writeDropForeignKeyStatement(foreignKeyTable, fkName), _ => true)
+    execFailSafeExecute(string2StatementWriter(writeDropForeignKeyStatement(foreignKeyTable, fkName)), _ => true)
 
   def isTableDoesNotExistException(e: SQLException): Boolean
 
@@ -811,7 +808,7 @@ trait DatabaseAdapter {
     "drop table " + quoteName(tableName)
 
   def dropTable(t: Table[_]): Unit =
-    execFailSafeExecute(writeDropTable(t.prefixedName), e => isTableDoesNotExistException(e))
+    execFailSafeExecute(string2StatementWriter(writeDropTable(t.prefixedName)), e => isTableDoesNotExistException(e))
 
   def writeCompositePrimaryKeyConstraint(t: Table[_], cols: Iterable[FieldMetaData]): String =
     writeUniquenessConstraint(t, cols)
@@ -920,8 +917,6 @@ trait DatabaseAdapter {
 
   def writeSelectElementAlias(se: SelectElement, sw: StatementWriter): Unit = {
     val a = se.aliasSegment
-//    if(a.length > 30)
-//      org.squeryl.internals.Utils.throwError("Oracle Bust : " + a)
     sw.write(quoteName(a))
   }
 
