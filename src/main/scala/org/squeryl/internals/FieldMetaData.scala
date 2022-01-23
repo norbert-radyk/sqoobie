@@ -16,13 +16,8 @@ import scala.collection.mutable
 class FieldMetaData(
     val parentMetaData: PosoMetaData[_],
     val nameOfProperty: String,
-    val fieldType: Class[
-      _
-    ], // if isOption, this fieldType is the type param of Option, i.e. the T in Option[T]
-    val wrappedFieldType: Class[
-      _
-    ], // in primitive type mode fieldType == wrappedFieldType, in custom type mode wrappedFieldType is the 'real'
-    // type, i.e. the (primitive) type that jdbc understands
+    val fieldType: Class[_], // if isOption, this fieldType is the type param of Option, i.e. the T in Option[T]
+    val wrappedFieldType: Class[_], // in primitive type mode fieldType == wrappedFieldType, in custom type mode wrappedFieldType is the 'real' type, i.e. the (primitive) type that jdbc understands
     val customTypeFactory: Option[AnyRef => Product1[Any] with AnyRef],
     val isOption: Boolean,
     getter: Option[Method],
@@ -36,8 +31,7 @@ class FieldMetaData(
   def nativeJdbcType: Class[_] =
     this.schema.fieldMapper.nativeJdbcTypeFor(wrappedFieldType)
 
-  /** None if this FieldMetaData is not an enumeration,
-    * Some(theParentEnumeration) otherwise
+  /** None if this FieldMetaData is not an enumeration, Some(theParentEnumeration) otherwise
     */
   val enumeration: Option[Enumeration] =
     sampleValue match {
@@ -56,8 +50,7 @@ class FieldMetaData(
         e.values find { _.id == id }
       }.get
 
-  /** This field is mutable only by the Schema trait, and only during the Schema
-    * instantiation, so it can safely be considered immutable (read only) by the
+  /** This field is mutable only by the Schema trait, and only during the Schema instantiation, so it can safely be considered immutable (read only) by the
     * columnAttributes accessor
     */
   private[this] val _columnAttributes = new mutable.HashSet[ColumnAttribute]
@@ -69,8 +62,7 @@ class FieldMetaData(
   private[squeryl] def _addColumnAttribute(ca: ColumnAttribute) =
     _columnAttributes.add(ca)
 
-  /** In some circumstances (like in the test suite) a Schema instance must run
-    * on multiple database types, this Map keeps the sequence names 'per schema'
+  /** In some circumstances (like in the test suite) a Schema instance must run on multiple database types, this Map keeps the sequence names 'per schema'
     */
   private[this] val _sequenceNamePerDBAdapter = new mutable.HashMap[Class[_], String]
 
@@ -139,9 +131,8 @@ class FieldMetaData(
 
   def defaultValue: Option[ConstantTypedExpression[_, _]] = _defaultValue
 
-  /** The db column type declaration overridden in the schema, if None, it means
-    * that it is the default value for the adapter (see Correspondance of field
-    * types to database column types http://squeryl.org/schema-definition.html)
+  /** The db column type declaration overridden in the schema, if None, it means that it is the default value for the adapter (see Correspondance of field types
+    * to database column types http://squeryl.org/schema-definition.html)
     */
   def explicitDbTypeDeclaration: Option[String] = {
     _columnAttributes.collectFirst { case d: DBType => d.declaration }
@@ -159,15 +150,12 @@ class FieldMetaData(
   def isCustomType: Boolean = customTypeFactory.isDefined
 
   /** @return
-    *   the length defined in org.squeryl.annotations.Column.length if it is
-    *   defined, or the default length for Java primitive types. The unit of the
-    *   length is dependent on the type, the convention is that numeric types
-    *   have a length in byte, boolean is bits date has -1, and for string the
-    *   length is in chars. double,long -> 8, float,int -> 4, byte -> 1, boolean
-    *   -> 1 java.util.Date -> -1.
+    *   the length defined in org.squeryl.annotations.Column.length if it is defined, or the default length for Java primitive types. The unit of the length is
+    *   dependent on the type, the convention is that numeric types have a length in byte, boolean is bits date has -1, and for string the length is in chars.
+    *   double,long -> 8, float,int -> 4, byte -> 1, boolean
+    * -> 1 java.util.Date -> -1.
     *
-    * The use of this field is to help custom schema generators select the most
-    * appropriate column type
+    * The use of this field is to help custom schema generators select the most appropriate column type
     */
   def length: Int =
     if (columnAnnotation.isEmpty || columnAnnotation.get.length == -1) {
@@ -187,8 +175,8 @@ class FieldMetaData(
     */
   def columnName: String =
     if (columnAnnotation.isEmpty) {
-      val nameDefinedInSchema = _columnAttributes.collectFirst {
-        case n: Named => n.name
+      val nameDefinedInSchema = _columnAttributes.collectFirst { case n: Named =>
+        n.name
       }
       parentMetaData.schema.columnNameFromPropertyName(
         nameDefinedInSchema.getOrElse(nameOfProperty)
@@ -230,17 +218,12 @@ class FieldMetaData(
     else
       fieldType.getName
 
-  /** When true, will cause Schema generation to declare as PrimaryKey, Note
-    * that for KeyedEntity[]s, declaredAsPrimaryKeyInSchema is always true, and
-    * the cannot be made otherwise, the inverse is not true, a field can be
-    * declared as primary key in the Shema without it being the id of a
-    * KeyedEntity[], ex. :
+  /** When true, will cause Schema generation to declare as PrimaryKey, Note that for KeyedEntity[]s, declaredAsPrimaryKeyInSchema is always true, and the
+    * cannot be made otherwise, the inverse is not true, a field can be declared as primary key in the Shema without it being the id of a KeyedEntity[], ex. :
     *
-    * <pre> on(myTable)(t =>declare( myField.is(primaryKey) // myField doesn't
-    * need to be a KeyedEntity.id )) </pre>
+    * <pre> on(myTable)(t =>declare( myField.is(primaryKey) // myField doesn't need to be a KeyedEntity.id )) </pre>
     *
-    * <pre> on(myKeyedEntityTable)(t =>declare( id.is(autoIncremented) //
-    * omitting primaryKey here has no effect, it is equivalent as
+    * <pre> on(myKeyedEntityTable)(t =>declare( id.is(autoIncremented) // omitting primaryKey here has no effect, it is equivalent as
     * id.is(primaryKey,autoIncremented) )) </pre>
     */
   def declaredAsPrimaryKeyInSchema: Boolean =
@@ -259,9 +242,8 @@ class FieldMetaData(
   def isUpdatable: Boolean =
     !columnAttributes.exists(_.isInstanceOf[Unupdatable])
 
-  /** gets the value of the field from the object. Note that it will unwrap
-    * Option[] and return null instead of None, i.e. if converts None and Some
-    * to null and some.get respectively
+  /** gets the value of the field from the object. Note that it will unwrap Option[] and return null instead of None, i.e. if converts None and Some to null and
+    * some.get respectively
     * @param o
     *   the object that owns the field
     */
@@ -297,8 +279,7 @@ class FieldMetaData(
     set(target, v)
   }
 
-  /** Sets the value 'v' to the object, the value will be converted to Some or
-    * None if the field is an Option[], (if isOption).
+  /** Sets the value 'v' to the object, the value will be converted to Some or None if the field is an Option[], (if isOption).
     */
   def set(target: AnyRef, v: AnyRef): Unit = {
     try {
@@ -408,24 +389,11 @@ object FieldMetaData {
       /*
        * Retrieve the member in use, its class and its generic type
        */
-      val (member, clsOfField, typeOfField) =
-        setter
-          .map(s =>
-            (
-              s: Member,
-              s.getParameterTypes.head,
-              s.getGenericParameterTypes.head
-            )
-          )
-          .orElse(
-            getter.map(g =>
-              (g: Member, g.getReturnType, g.getGenericReturnType)
-            )
-          )
-          .orElse(field.map(f => (f: Member, f.getType, f.getType)))
-          .getOrElse(
-            org.squeryl.internals.Utils.throwError("invalid field group")
-          )
+      val (member: Member, clsOfField: Class[_], typeOfField: Type) = setter
+        .map(s => (s: Member, s.getParameterTypes.head, s.getGenericParameterTypes.head))
+        .orElse(getter.map(g => (g: Member, g.getReturnType, g.getGenericReturnType)))
+        .orElse(field.map(f => (f: Member, f.getType, f.getType)))
+        .getOrElse(org.squeryl.internals.Utils.throwError("invalid field group"))
 
       /*
        * Look for a value in the sample type.  If one exists and
@@ -553,10 +521,8 @@ object FieldMetaData {
     }
   }
 
-  /** creates a closure that takes a java.lang. primitive wrapper (ex.:
-    * java.lang.Integer) and that creates an instance of a custom type with it,
-    * the factory accepts null to create default values for non nullable
-    * primitive types (int, long, etc...)
+  /** creates a closure that takes a java.lang. primitive wrapper (ex.: java.lang.Integer) and that creates an instance of a custom type with it, the factory
+    * accepts null to create default values for non nullable primitive types (int, long, etc...)
     */
   private def _createCustomTypeFactory(
       fieldMapper: FieldMapper,
@@ -568,9 +534,7 @@ object FieldMetaData {
     @tailrec
     def find(c: Class[_]): Option[Method] =
       if (c != null)
-        c.getMethods.find(m =>
-          m.getName == "value" && m.getReturnType != classOf[java.lang.Object]
-        ) match {
+        c.getMethods.find(m => m.getName == "value" && m.getReturnType != classOf[java.lang.Object]) match {
           case Some(m) => Some(m)
           case None    => find(c.getSuperclass)
         }

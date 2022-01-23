@@ -5,6 +5,7 @@ import org.squeryl.dsl._
 import java.sql
 import java.sql.{ResultSet, Timestamp}
 import java.util.{Date, UUID}
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 trait FieldMapper {
@@ -472,12 +473,12 @@ trait FieldMapper {
       registry.get(c)
     else
       c.getName match {
-        case "int"     => lookup(classOf[java.lang.Integer])
-        case "long"    => lookup(classOf[java.lang.Long])
-        case "float"   => lookup(classOf[java.lang.Float])
-        case "byte"    => lookup(classOf[java.lang.Byte])
-        case "boolean" => lookup(classOf[java.lang.Boolean])
-        case "double"  => lookup(classOf[java.lang.Double])
+        case "int"     => registry.get(classOf[java.lang.Integer])
+        case "long"    => registry.get(classOf[java.lang.Long])
+        case "float"   => registry.get(classOf[java.lang.Float])
+        case "byte"    => registry.get(classOf[java.lang.Byte])
+        case "boolean" => registry.get(classOf[java.lang.Boolean])
+        case "double"  => registry.get(classOf[java.lang.Double])
         case "void"    => None
       }
   }

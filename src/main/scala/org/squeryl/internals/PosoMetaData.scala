@@ -326,7 +326,7 @@ class PosoMetaData[T](
       members.append(m -> annotations)
     }
 
-    val superClass = clasz.getSuperclass
+    val superClass: Class[_] = clasz.getSuperclass
     if (superClass != null)
       fillWithMembers(superClass, members)
   }
