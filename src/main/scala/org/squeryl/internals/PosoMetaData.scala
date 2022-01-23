@@ -4,10 +4,12 @@ import java.lang.annotation.Annotation
 import net.sf.cglib.proxy.{Callback, CallbackFilter, Enhancer, Factory, NoOp}
 
 import java.lang.reflect.{Constructor, Field, Member, Method, Modifier}
-import collection.mutable.{ArrayBuffer, HashSet}
+import collection.mutable.ArrayBuffer
 import org.squeryl.annotations._
 import org.squeryl._
+import org.squeryl.internals.PosoMetaData.ObjectClass
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 class PosoMetaData[T](
@@ -61,9 +63,9 @@ class PosoMetaData[T](
           )
       }
 
-    val members = new ArrayBuffer[(Member, HashSet[Annotation])]
+    val members = new ArrayBuffer[(Member, Set[Annotation])]
 
-    _fillWithMembers(clasz, members)
+    fillWithMembers(clasz, members)
 
     val name2MembersMap =
       members.groupBy(m => {
@@ -82,35 +84,18 @@ class PosoMetaData[T](
       val name = e._1
       val v = e._2
 
-      var a: Set[Annotation] = Set.empty
-      for (memberWithAnnotationTuple <- v)
-        a = a.union(memberWithAnnotationTuple._2)
-
       val members = v.map(t => t._1)
+      val annotations = v.flatMap(_._2).toSet
 
       // here we do a filter and not a find, because there can be more than one setter/getter/field
       // with the same name, we want one that is not an erased type, excluding return and input type
       // of java.lang.Object does it.
 
-      val o = classOf[java.lang.Object]
+      val field = members.collectFirst { case f: Field if f.getType != ObjectClass => f }
+      val getter = members.collectFirst { case m: Method if m.getName == name && m.getReturnType != ObjectClass => m }
+      val setter = members.collectFirst { case m: Method if m.getName.endsWith("_$eq") && (m.getParameterTypes.apply(0) != ObjectClass) => m }
 
-      val field =
-        members.collectFirst { case f: Field if f.getType != o => f }
-
-      val getter =
-        members.collectFirst {
-          case m: Method if (m.getName == name) && (m.getReturnType != o) => m
-        }
-
-      val setter =
-        members.collectFirst {
-          case m: Method
-              if m.getName
-                .endsWith("_$eq") && (m.getParameterTypes.apply(0) != o) =>
-            m
-        }
-
-      val property = (field, getter, setter, a)
+      val property = (field, getter, setter, annotations)
 
       if (isImplicitMode && _groupOfMembersIsProperty(property)) {
         val isOptimisitcCounter =
@@ -173,10 +158,7 @@ class PosoMetaData[T](
       else
         None
 
-    (
-      fmds,
-      metaDataForPk
-    ) // : (Iterable[FieldMetaData], Option[Either[FieldMetaData,Method]])
+    (fmds, metaDataForPk)
   }
 
   def optimisticCounter: Option[FieldMetaData] =
@@ -315,22 +297,14 @@ class PosoMetaData[T](
     }
   }
 
-  private def _includeAnnotation(a: Annotation) =
-    a.isInstanceOf[ColumnBase] || a.isInstanceOf[Transient] || a
-      .isInstanceOf[OptionType]
-
-  private def _addAnnotations(m: Field, s: mutable.HashSet[Annotation]): Unit =
-    for (a <- m.getAnnotations if _includeAnnotation(a))
-      s.add(a)
-
-  private def _addAnnotations(m: Method, s: mutable.HashSet[Annotation]): Unit =
-    for (a <- m.getAnnotations if _includeAnnotation(a))
-      s.add(a)
+  private def includeAnnotation(a: Annotation) =
+    a.isInstanceOf[ColumnBase] || a.isInstanceOf[Transient] || a.isInstanceOf[OptionType]
 
   private def _includeFieldOrMethodType(c: Class[_]) =
     schema.fieldMapper.isSupported(c)
 
-  private def _fillWithMembers(clasz: Class[_], members: mutable.ArrayBuffer[(Member, mutable.HashSet[Annotation])]): Unit = {
+  @tailrec
+  private def fillWithMembers(clasz: Class[_], members: mutable.ArrayBuffer[(Member, Set[Annotation])]): Unit = {
 
     for (
       m <- clasz.getMethods
@@ -339,9 +313,8 @@ class PosoMetaData[T](
       )
     ) {
       m.setAccessible(true)
-      val t = (m, new mutable.HashSet[Annotation])
-      _addAnnotations(m, t._2)
-      members.append(t)
+      val annotations = m.getAnnotations.filter(includeAnnotation).toSet
+      members.append(m -> annotations)
     }
 
     for (
@@ -349,18 +322,18 @@ class PosoMetaData[T](
       if (m.getName.indexOf("$") == -1) && _includeFieldOrMethodType(m.getType)
     ) {
       m.setAccessible(true)
-      val t = (m, new mutable.HashSet[Annotation])
-      _addAnnotations(m, t._2)
-      members.append(t)
+      val annotations = m.getAnnotations.filter(includeAnnotation).toSet
+      members.append(m -> annotations)
     }
 
-    val c = clasz.getSuperclass
-
-    if (c != null)
-      _fillWithMembers(c, members)
+    val superClass = clasz.getSuperclass
+    if (superClass != null)
+      fillWithMembers(superClass, members)
   }
 }
 
 object PosoMetaData {
   val finalizeFilter: CallbackFilter = (method: Method) => if (method.getName == "finalize") 1 else 0
+
+  val ObjectClass: Class[Object] = classOf[java.lang.Object]
 }
