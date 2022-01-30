@@ -814,17 +814,10 @@ trait DatabaseAdapter {
     writeUniquenessConstraint(t, cols)
 
   def writeUniquenessConstraint(t: Table[_], cols: Iterable[FieldMetaData]): String = {
-    // ALTER TABLE TEST ADD CONSTRAINT NAME_UNIQUE UNIQUE(NAME)
-    val sb = new java.lang.StringBuilder(256)
-
-    sb.append("alter table ")
-    sb.append(quoteName(t.prefixedName))
-    sb.append(" add constraint ")
-    sb.append(quoteName(t.prefixedName + "CPK"))
-    sb.append(" unique(")
-    sb.append(cols.map(_.columnName).map(quoteName).mkString(","))
-    sb.append(")")
-    sb.toString
+    val tableName = quoteName(t.prefixedName)
+    val constraintName = quoteName(t.prefixedName + "CPK")
+    val uniqueColumnNames = cols.map(_.columnName).map(quoteName).mkString(",")
+    s"ALTER TABLE $tableName ADD CONSTRAINT $constraintName UNIQUE($uniqueColumnNames)"
   }
 
   def writeRegexExpression(left: ExpressionNode, pattern: String, sw: StatementWriter): Unit = {
