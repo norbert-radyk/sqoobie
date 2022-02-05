@@ -1,6 +1,5 @@
 package org.squeryl
 
-import logging.StatisticsListener
 import org.squeryl.internals._
 import collection.mutable.ArrayBuffer
 import java.sql.{SQLException, ResultSet, Statement, Connection}
@@ -8,17 +7,16 @@ import scala.util.control.ControlThrowable
 
 class LazySession(
     val connectionFunc: () => Connection,
-    val databaseAdapter: DatabaseAdapter,
-    val statisticsListener: Option[StatisticsListener] = None
+    val databaseAdapter: DatabaseAdapter
 ) extends AbstractSession {
 
   private[this] var _connection: Option[Connection] = None
 
-  def hasConnection = _connection.isDefined
+  def hasConnection: Boolean = _connection.isDefined
 
   var originalAutoCommit = true
 
-  var originalTransactionIsolation = java.sql.Connection.TRANSACTION_NONE
+  var originalTransactionIsolation: Int = java.sql.Connection.TRANSACTION_NONE
 
   def connection: Connection = {
     /*
@@ -56,9 +54,9 @@ class LazySession(
         try {
           try {
             if (txOk)
-              connection.commit
+              connection.commit()
             else
-              connection.rollback
+              connection.rollback()
           } finally {
             if (originalAutoCommit != connection.getAutoCommit) {
               connection.setAutoCommit(originalAutoCommit)
@@ -73,7 +71,7 @@ class LazySession(
         }
         try {
           if (!connection.isClosed)
-            connection.close
+            connection.close()
         } catch {
           case e: SQLException =>
             if (txOk)
@@ -85,11 +83,7 @@ class LazySession(
 
 }
 
-class Session(
-    val connection: Connection,
-    val databaseAdapter: DatabaseAdapter,
-    val statisticsListener: Option[StatisticsListener] = None
-) extends AbstractSession {
+class Session(val connection: Connection, val databaseAdapter: DatabaseAdapter) extends AbstractSession {
 
   val hasConnection = true
 
@@ -126,9 +120,9 @@ class Session(
       try {
         try {
           if (txOk)
-            connection.commit
+            connection.commit()
           else
-            connection.rollback
+            connection.rollback()
         } finally {
           if (originalAutoCommit != connection.getAutoCommit) {
             connection.setAutoCommit(originalAutoCommit)
@@ -143,7 +137,7 @@ class Session(
       }
       try {
         if (!connection.isClosed)
-          connection.close
+          connection.close()
       } catch {
         case e: SQLException =>
           if (txOk)
@@ -165,37 +159,35 @@ trait AbstractSession {
   protected[squeryl] def using[A](a: () => A): A = {
     val s = Session.currentSessionOption
     try {
-      if (s.isDefined) s.get.unbindFromCurrentThread
+      if (s.isDefined) s.get.unbindFromCurrentThread()
       try {
-        this.bindToCurrentThread
+        this.bindToCurrentThread()
         val r = a()
         r
       } finally {
-        this.unbindFromCurrentThread
-        this.cleanup
+        this.unbindFromCurrentThread()
+        this.cleanup()
       }
     } finally {
-      if (s.isDefined) s.get.bindToCurrentThread
+      if (s.isDefined) s.get.bindToCurrentThread()
     }
   }
 
   def databaseAdapter: DatabaseAdapter
 
-  def statisticsListener: Option[StatisticsListener]
+  def bindToCurrentThread(): Unit = Session.currentSession = Some(this)
 
-  def bindToCurrentThread = Session.currentSession = Some(this)
-
-  def unbindFromCurrentThread = Session.currentSession = None
+  def unbindFromCurrentThread(): Unit = Session.currentSession = None
 
   private[this] var _logger: String => Unit = null
 
-  def logger_=(f: String => Unit) = _logger = f
+  def logger_=(f: String => Unit): Unit = _logger = f
 
-  def setLogger(f: String => Unit) = _logger = f
+  def setLogger(f: String => Unit): Unit = _logger = f
 
-  def isLoggingEnabled = _logger != null
+  def isLoggingEnabled: Boolean = _logger != null
 
-  def log(s: String) = if (isLoggingEnabled) _logger(s)
+  def log(s: String): Unit = if (isLoggingEnabled) _logger(s)
 
   val logUnclosedStatements = false
 
@@ -207,7 +199,7 @@ trait AbstractSession {
 
   private[squeryl] def _addResultSet(rs: ResultSet) = _resultSets.append(rs)
 
-  def cleanup = {
+  def cleanup(): Unit = {
     _statements.foreach(s => {
       if (logUnclosedStatements && isLoggingEnabled && !s.isClosed) {
         val stackTrace =
@@ -227,10 +219,10 @@ trait AbstractSession {
     FieldReferenceLinker.clearThreadLocalState()
   }
 
-  def close = {
-    cleanup
+  def close(): Unit = {
+    cleanup()
     if (hasConnection)
-      connection.close
+      connection.close()
   }
 
 }
@@ -306,13 +298,13 @@ object Session {
         )
     }
 
-  def hasCurrentSession =
+  def hasCurrentSession: Boolean =
     currentSessionOption.isDefined
 
-  def cleanupResources =
-    currentSessionOption foreach (_.cleanup)
+  def cleanupResources(): Unit =
+    currentSessionOption foreach (_.cleanup())
 
-  private[squeryl] def currentSession_=(s: Option[AbstractSession]) =
+  private[squeryl] def currentSession_=(s: Option[AbstractSession]): Unit =
     if (s.isEmpty) {
       _currentSessionThreadLocal.remove()
     } else {

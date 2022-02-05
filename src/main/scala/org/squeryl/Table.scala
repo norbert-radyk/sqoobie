@@ -4,7 +4,6 @@ import dsl.ast._
 import dsl.{CompositeKey, QueryDsl}
 import internals._
 import java.sql.Statement
-import logging.StackMarker
 import collection.mutable.ArrayBuffer
 
 class Table[T] private[squeryl] (
@@ -20,7 +19,7 @@ class Table[T] private[squeryl] (
   /** @throws SquerylSQLException
     *   When a database error occurs or the insert does not result in 1 row
     */
-  def insert(t: T): T = StackMarker.lastSquerylStackFrame {
+  def insert(t: T): T =  {
 
     val o = _callbacks.beforeInsert(t.asInstanceOf[AnyRef])
     val sess = Session.currentSession

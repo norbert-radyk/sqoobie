@@ -6,7 +6,6 @@ import java.sql.ResultSet
 import org.squeryl.internals._
 import org.squeryl.{View, Queryable, Session, Query}
 import collection.mutable.ArrayBuffer
-import org.squeryl.logging._
 import java.io.Closeable
 
 abstract class AbstractQuery[R](
@@ -186,17 +185,6 @@ abstract class AbstractQuery[R](
     val beforeQueryExecute = System.currentTimeMillis
     val (rs, stmt) = _dbAdapter.executeQuery(s, sw)
 
-    lazy val statEx = new StatementInvocationEvent(
-      definitionSite.get,
-      beforeQueryExecute,
-      System.currentTimeMillis,
-      -1,
-      sw.statement
-    )
-
-    if (s.statisticsListener.isDefined)
-      s.statisticsListener.get.queryExecuted(statEx)
-
     s._addStatement(
       stmt
     ) // if the iteration doesn't get completed, we must hang on to the statement to clean it up at session end.
@@ -218,15 +206,6 @@ abstract class AbstractQuery[R](
       if (!_hasNext) { // close it since we've completed the iteration
         Utils.close(rs)
         stmt.close
-
-        if (s.statisticsListener.isDefined) {
-          s.statisticsListener.get.resultSetIterationEnded(
-            statEx.uuid,
-            System.currentTimeMillis,
-            rowCount,
-            iterationCompleted = true
-          )
-        }
       }
 
       rowCount = rowCount + 1
