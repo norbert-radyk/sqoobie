@@ -2,17 +2,17 @@ package org.squeryl.test
 
 import org.squeryl._
 import org.squeryl.framework._
-import org.squeryl.test.PrimitiveTypeModeForTests._
 import org.squeryl.internals.Utils
+import org.squeryl.test.PrimitiveTypeModeForTests._
 
 class Foo(val value: String) extends KeyedEntity[Long] {
   val id: Long = 0
 }
 
 object FooSchema extends Schema {
-  val foos = table[Foo]()
+  val foos: Table[Foo] = table[Foo]()
 
-  def reset() = {
+  def reset(): Unit = {
     drop // its protected for some reason
     create
   }
@@ -26,17 +26,14 @@ abstract class TransactionTests extends DbTestBase {
     1
   }
 
-  def doSomething(except: Boolean): Int = {
-    transaction {
-      throwExc(except)
-    }
+  def doSomething(except: Boolean): Int = transaction {
+    throwExc(except)
   }
 
-  def returnInTransaction: Int =
-    transaction {
-      FooSchema.foos.insert(new Foo("test"))
-      return 1
-    }
+  def returnInTransaction: Int = transaction {
+    FooSchema.foos.insert(new Foo("test"))
+    return 1
+  }
 
   test("No exception in transaction") {
     transaction {
@@ -44,16 +41,16 @@ abstract class TransactionTests extends DbTestBase {
     }
     transaction {
       FooSchema.foos.insert(new Foo("test"))
-      assert(FooSchema.foos.where(f => f.value === "test").size == 1)
+      FooSchema.foos.where(f => f.value === "test").size shouldBe 1
 
       try {
         doSomething(true)
       } catch {
-        case e: Exception =>
+        case _: Exception =>
       }
 
       // fails with "no session exception"
-      assert(FooSchema.foos.where(f => f.value === "test").size == 1)
+      FooSchema.foos.where(f => f.value === "test").size shouldBe 1
     }
   }
 
@@ -63,15 +60,11 @@ abstract class TransactionTests extends DbTestBase {
     }
     transaction {
       FooSchema.foos.insert(new Foo("test"))
-      assert(
-        FooSchema.foos.where(f => f.value === "test").size == 1
-      ) // should equal(1)
+      FooSchema.foos.where(f => f.value === "test").size shouldBe 1
 
       doSomething(false)
       // fails with "no session exception"
-      assert(
-        FooSchema.foos.where(f => f.value === "test").size == 1
-      ) // should equal(1)
+      FooSchema.foos.where(f => f.value === "test").size shouldBe 1
     }
   }
 
@@ -79,19 +72,15 @@ abstract class TransactionTests extends DbTestBase {
     transaction {
       FooSchema.reset()
     }
+
     transaction {
       FooSchema.foos.insert(new Foo("test"))
-      assert(
-        FooSchema.foos.where(f => f.value === "test").size == 1
-      ) // should equal(1)
-
+      FooSchema.foos.where(f => f.value === "test").size shouldBe 1
       doSomething(false)
     }
+
     transaction {
-      // works!
-      assert(
-        FooSchema.foos.where(f => f.value === "test").size == 1
-      ) // should equal(1)
+      FooSchema.foos.where(f => f.value === "test").size shouldBe 1
     }
   }
 
@@ -101,10 +90,7 @@ abstract class TransactionTests extends DbTestBase {
     }
     returnInTransaction
     transaction {
-      // works!
-      assert(
-        FooSchema.foos.where(f => f.value === "test").size == 1
-      ) // should equal(1)
+      FooSchema.foos.where(f => f.value === "test").size shouldBe 1
     }
   }
 

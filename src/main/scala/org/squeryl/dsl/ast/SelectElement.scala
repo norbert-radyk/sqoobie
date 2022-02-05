@@ -232,6 +232,7 @@ class SelectElementReference[A, T](
 
   private def _useSite: QueryExpressionNode[_] = {
 
+    @tailrec
     def findQueryExpressionNode(e: ExpressionNode): QueryExpressionNode[_] =
       e match {
         case qe: QueryExpressionNode[_] => qe

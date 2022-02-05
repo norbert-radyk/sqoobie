@@ -492,7 +492,7 @@ abstract class SchoolDb2Tests
           select (p)
       ).toList
 
-    assert(belowOrEqualToAvg.size == 1)
+    belowOrEqualToAvg.size shouldBe 1
 
     val belowAvg =
       from(courseSubscriptions)(p =>
@@ -513,7 +513,7 @@ abstract class SchoolDb2Tests
 
     val compTheory = cs.childSubjects.single
 
-    assert(compTheory.name == "Computation Theory")
+    compTheory.name shouldBe "Computation Theory"
 
   }
 }

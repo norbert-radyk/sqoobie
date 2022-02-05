@@ -2,13 +2,11 @@ package org.squeryl.test.arrays
 
 import _root_.org.squeryl.framework._
 import org.squeryl.test.PrimitiveTypeModeForTests._
+import org.squeryl.{Schema, Table}
 
-abstract class PrimitiveArrayTest
-    extends SchemaTester
-    with RunTestsInsideTransaction {
-  self: DBConnector =>
+abstract class PrimitiveArrayTest extends SchemaTester with RunTestsInsideTransaction { self: DBConnector =>
 
-  val schema = PrimitiveArraySchema
+  val schema: Schema = PrimitiveArraySchema
 
   import PrimitiveArraySchema._
 
@@ -32,24 +30,24 @@ abstract class PrimitiveArrayTest
     val query = from(swimmers)(s => select(s))
     val res = transaction { query.toList }
 
-    res.size should equal(1)
-    res(0).lap_times.length should equal(3)
-    res(0).lap_times(0) should equal(10.55)
-    res(0).lap_times(1) should equal(12.99)
-    res(0).lap_times(2) should equal(15.32)
+    res.size shouldBe 1
+    res(0).lap_times.length shouldBe 3
+    res(0).lap_times(0) shouldBe 10.55
+    res(0).lap_times(1) shouldBe 12.99
+    res(0).lap_times(2) shouldBe 15.32
 
-    res(0).scores.length should equal(3)
-    res(0).scores(0) should equal(100)
-    res(0).scores(1) should equal(110)
-    res(0).scores(2) should equal(20)
+    res(0).scores.length shouldBe 3
+    res(0).scores(0) shouldBe 100
+    res(0).scores(1) shouldBe 110
+    res(0).scores(2) shouldBe 20
 
-    res(0).orgids.length should equal(2)
-    res(0).orgids(0) should equal(9876543210L)
-    res(0).orgids(1) should equal(123456789L)
+    res(0).orgids.length shouldBe 2
+    res(0).orgids(0) shouldBe 9876543210L
+    res(0).orgids(1) shouldBe 123456789L
 
-    res(0).tags.length should equal(2)
-    res(0).tags(0) should equal("testing")
-    res(0).tags(1) should equal("stuff")
+    res(0).tags.length shouldBe 2
+    res(0).tags(0) shouldBe "testing"
+    res(0).tags(1) shouldBe "stuff"
   }
   test("can update integer, double, and long array values in database") {
     transaction {
@@ -69,11 +67,11 @@ abstract class PrimitiveArrayTest
     val query = from(swimmers)(s => select(s))
     val res = transaction { query.toList }
 
-    res.size should equal(1)
-    res(0).lap_times.length should equal(3)
-    res(0).scores.length should equal(3)
-    res(0).orgids.length should equal(2)
-    res(0).tags.length should equal(2)
+    res.size shouldBe 1
+    res(0).lap_times.length shouldBe 3
+    res(0).scores.length shouldBe 3
+    res(0).orgids.length shouldBe 2
+    res(0).tags.length shouldBe 2
 
     transaction {
       update(swimmers)(s =>
@@ -91,26 +89,24 @@ abstract class PrimitiveArrayTest
     from(swimmers)(s => select(s))
     val res2 = transaction { query.toList }
 
-    res2.size should equal(1)
-    res2(0).lap_times.length should equal(1)
-    res2(0).scores.length should equal(5)
-    res2(0).orgids.length should equal(1)
-    res2(0).tags.length should equal(1)
+    res2.size shouldBe 1
+    res2(0).lap_times.length shouldBe 1
+    res2(0).scores.length shouldBe 5
+    res2(0).orgids.length shouldBe 1
+    res2(0).tags.length shouldBe 1
 
-    res2(0).lap_times(0) should equal(11.69)
-    res2(0).scores(2) should equal(3)
-    res2(0).orgids(0) should equal(13L)
-    res2(0).tags(0) should equal("and things")
+    res2(0).lap_times(0) shouldBe 11.69
+    res2(0).scores(2) shouldBe 3
+    res2(0).orgids(0) shouldBe 13L
+    res2(0).tags(0) shouldBe "and things"
   }
 }
 
-import _root_.org.squeryl.Schema
-
 object PrimitiveArraySchema extends Schema {
 
-  val swimmers = table[Swimmer]("swimmer")
+  val swimmers: Table[Swimmer] = table[Swimmer]("swimmer")
 
-  override def drop = super.drop
+  override def drop: Unit = super.drop
 }
 
 class Swimmer(

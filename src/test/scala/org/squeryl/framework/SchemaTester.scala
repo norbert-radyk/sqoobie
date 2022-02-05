@@ -12,9 +12,9 @@ abstract class SchemaTester extends DbTestBase {
 
   def schema: Schema
 
-  def prePopulate() = {}
+  def prePopulate(): Unit = {}
 
-  override def beforeAll() = {
+  override def beforeAll(): Unit = {
 
     super.beforeAll()
 
@@ -33,7 +33,7 @@ abstract class SchemaTester extends DbTestBase {
     }
   }
 
-  override def afterAll() = {
+  override def afterAll(): Unit = {
     super.afterAll()
 
     sessionCreator().foreach { _ =>
@@ -51,12 +51,12 @@ abstract class DbTestBase
     with Matchers {
   self: DBConnector =>
 
-  def isIgnored(testName: String) =
+  def isIgnored(testName: String): Boolean =
     sessionCreator().isEmpty || ignoredTests.contains(testName)
 
   def ignoredTests: List[String] = Nil
 
-  override def beforeAll() = {
+  override def beforeAll(): Unit = {
     val c = sessionCreator()
     if (c.isDefined) {
       SessionFactory.concreteFactory = c

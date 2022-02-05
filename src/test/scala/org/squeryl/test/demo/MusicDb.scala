@@ -209,7 +209,7 @@ abstract class KickTheTires
     val songIds =
       songsFromThe60sInFunkAndLatinJazzPlaylist.map(_.id).toSet
 
-    assert(songIds == funkAndLatinJazz.songsInPlaylistOrder.map(_.id).toSet)
+    songIds shouldBe funkAndLatinJazz.songsInPlaylistOrder.map(_.id).toSet
 
     // Nesting in From clause :
     from(funkAndLatinJazz.songsInPlaylistOrder)(s =>
@@ -242,8 +242,6 @@ abstract class KickTheTires
     funkAndLatinJazz._songCountByArtistId.toList
 
     val q = funkAndLatinJazz.songCountForAllArtists
-
-    // println(q.dumpAst)
 
     q.toList
   }

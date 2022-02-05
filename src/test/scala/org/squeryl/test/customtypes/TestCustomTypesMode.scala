@@ -33,7 +33,7 @@ abstract class TestCustomTypesMode
     )
 
   test("Queries") {
-    val testObjects = sharedTestObjects;
+    val testObjects = sharedTestObjects
     import testObjects._
 
     validateQuery(
@@ -69,7 +69,7 @@ abstract class TestCustomTypesMode
     val pi0 = new PatientInfo(new Info("zzzz"))
 
     jose.patientInfo.assign(pi0)
-    assert(jose.id.value == pi0.patientId.value)
+    jose.id.value shouldBe pi0.patientId.value
     patientInfo.insert(pi0)
 
     jose.patientInfo.associate(pi)

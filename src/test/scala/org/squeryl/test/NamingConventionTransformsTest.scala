@@ -9,50 +9,50 @@ class NamingConventionTransformsTest extends AnyFunSuite with Matchers {
 
   object FooSchema extends Schema
 
-  def snakify(name: String) = FooSchema.NamingConventionTransforms.snakify(name)
+  def snakify(name: String): String = FooSchema.NamingConventionTransforms.snakify(name)
 
   test("replace CamelCase with underscore") {
-    assert(snakify("MyTableName") == "my_table_name")
-    assert(snakify("TableName") == "table_name")
-    assert(snakify("Table") == "table")
-    assert(snakify("MyTable12Name") == "my_table12_name")
-    assert(snakify("TableName12") == "table_name12")
-    assert(snakify("Table12") == "table12")
+    snakify("MyTableName") shouldBe "my_table_name"
+    snakify("TableName") shouldBe "table_name"
+    snakify("Table") shouldBe "table"
+    snakify("MyTable12Name") shouldBe "my_table12_name"
+    snakify("TableName12") shouldBe "table_name12"
+    snakify("Table12") shouldBe "table12"
   }
 
   test("don't modify existing snake case strings") {
-    assert(snakify("my_snake_case") == "my_snake_case")
-    assert(snakify("snake") == "snake")
+    snakify("my_snake_case") shouldBe "my_snake_case"
+    snakify("snake") shouldBe "snake"
   }
 
-  test("handle abbeviations") {
-    assert(snakify("HTML") == "html")
-    assert(snakify("HTMLEditor") == "html_editor")
-    assert(snakify("EditorTOC") == "editor_toc")
-    assert(snakify("HTMLEditorTOC") == "html_editor_toc")
+  test("handle abbreviations") {
+    snakify("HTML") shouldBe "html"
+    snakify("HTMLEditor") shouldBe "html_editor"
+    snakify("EditorTOC") shouldBe "editor_toc"
+    snakify("HTMLEditorTOC") shouldBe "html_editor_toc"
 
-    assert(snakify("HTML5") == "html5")
-    assert(snakify("HTML5Editor") == "html5_editor")
-    assert(snakify("Editor2TOC") == "editor2_toc")
-    assert(snakify("HTML5Editor2TOC") == "html5_editor2_toc")
+    snakify("HTML5") shouldBe "html5"
+    snakify("HTML5Editor") shouldBe "html5_editor"
+    snakify("Editor2TOC") shouldBe "editor2_toc"
+    snakify("HTML5Editor2TOC") shouldBe "html5_editor2_toc"
   }
 
   test("prepend underscore if it starts with a number") {
-    assert(snakify("12MyTableName") == "_12_my_table_name")
-    assert(snakify("12TableName") == "_12_table_name")
-    assert(snakify("12Table") == "_12_table")
-    assert(snakify("12MyTable12Name") == "_12_my_table12_name")
-    assert(snakify("12TableName12") == "_12_table_name12")
-    assert(snakify("12Table12") == "_12_table12")
+    snakify("12MyTableName") shouldBe "_12_my_table_name"
+    snakify("12TableName") shouldBe "_12_table_name"
+    snakify("12Table") shouldBe "_12_table"
+    snakify("12MyTable12Name") shouldBe "_12_my_table12_name"
+    snakify("12TableName12") shouldBe "_12_table_name12"
+    snakify("12Table12") shouldBe "_12_table12"
 
-    assert(snakify("12_my_snake_case") == "_12_my_snake_case")
-    assert(snakify("12snake") == "_12snake")
+    snakify("12_my_snake_case") shouldBe "_12_my_snake_case"
+    snakify("12snake") shouldBe "_12snake"
 
-    assert(snakify("12HTML") == "_12_html")
-    assert(snakify("12HTMLEditor") == "_12_html_editor")
-    assert(snakify("12EditorTOC") == "_12_editor_toc")
-    assert(snakify("12HTML5") == "_12_html5")
-    assert(snakify("12HTML5Editor") == "_12_html5_editor")
-    assert(snakify("12Editor2TOC") == "_12_editor2_toc")
+    snakify("12HTML") shouldBe "_12_html"
+    snakify("12HTMLEditor") shouldBe "_12_html_editor"
+    snakify("12EditorTOC") shouldBe "_12_editor_toc"
+    snakify("12HTML5") shouldBe "_12_html5"
+    snakify("12HTML5Editor") shouldBe "_12_html5_editor"
+    snakify("12Editor2TOC") shouldBe "_12_editor2_toc"
   }
 }

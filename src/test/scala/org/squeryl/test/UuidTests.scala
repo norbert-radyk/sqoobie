@@ -1,19 +1,16 @@
 package org.squeryl.test
 
 import org.squeryl._
-import org.squeryl.framework.{
-  DBConnector,
-  SchemaTester,
-  RunTestsInsideTransaction,
-  SingleTestRun
-}
+import org.squeryl.dsl.OneToMany
+import org.squeryl.framework.{DBConnector, RunTestsInsideTransaction, SchemaTester, SingleTestRun}
+
 import java.util.UUID
 import org.squeryl.test.PrimitiveTypeModeForTests._
 
 object UuidTests {
   class UuidAsProperty extends KeyedEntity[Long] {
     val id: Long = 0
-    val uuid = UUID.randomUUID
+    val uuid: UUID = UUID.randomUUID
   }
 
   class UuidWithOption(val optionalUuid: Option[UUID])
@@ -23,8 +20,8 @@ object UuidTests {
   }
 
   class UuidAsId extends KeyedEntity[UUID] {
-    val id = UUID.randomUUID
-    lazy val foreigns = TestSchema.uuidOneToMany.left(this)
+    val id: UUID = UUID.randomUUID
+    lazy val foreigns: OneToMany[UuidAsForeignKey] = TestSchema.uuidOneToMany.left(this)
   }
 
   class UuidAsForeignKey(val foreignUuid: UUID) extends KeyedEntity[Long] {
@@ -32,15 +29,15 @@ object UuidTests {
   }
 
   object TestSchema extends Schema {
-    val uuidAsProperty = table[UuidAsProperty]()
-    val uuidAsId = table[UuidAsId]()
-    val uuidAsForeignKey = table[UuidAsForeignKey]()
-    val uuidWithOption = table[UuidWithOption]()
+    val uuidAsProperty: Table[UuidAsProperty] = table[UuidAsProperty]()
+    val uuidAsId: Table[UuidAsId] = table[UuidAsId]()
+    val uuidAsForeignKey: Table[UuidAsForeignKey] = table[UuidAsForeignKey]()
+    val uuidWithOption: Table[UuidWithOption] = table[UuidWithOption]()
 
-    val uuidOneToMany =
+    val uuidOneToMany: PrimitiveTypeModeForTests.OneToManyRelationImpl[UuidAsId, UuidAsForeignKey] =
       oneToManyRelation(uuidAsId, uuidAsForeignKey).via(_.id === _.foreignUuid)
 
-    override def drop = {
+    override def drop: Unit = {
       Session.cleanupResources
       super.drop
     }
@@ -52,7 +49,7 @@ abstract class UuidTests extends SchemaTester with RunTestsInsideTransaction {
   self: DBConnector =>
   import UuidTests._
 
-  final def schema = TestSchema
+  final def schema: Schema = TestSchema
 
   test("UuidAsProperty") {
     import TestSchema._
@@ -77,7 +74,7 @@ abstract class UuidTests extends SchemaTester with RunTestsInsideTransaction {
 
     val fromDb = uuidWithOption.lookup(testObject.id).get
     println(fromDb.optionalUuid)
-    fromDb.optionalUuid should equal(None)
+    fromDb.optionalUuid shouldBe None
 
     val uuid = UUID.randomUUID()
 
@@ -95,7 +92,7 @@ abstract class UuidTests extends SchemaTester with RunTestsInsideTransaction {
         set (p.optionalUuid := None)
     )
 
-    uuidWithOption.lookup(testObject.id).get.optionalUuid should equal(None)
+    uuidWithOption.lookup(testObject.id).get.optionalUuid shouldBe None
   }
 
   test("UuidAsId") {
@@ -105,14 +102,14 @@ abstract class UuidTests extends SchemaTester with RunTestsInsideTransaction {
 
     testObject.save
 
-    testObject.id should equal(uuidAsId.where(_.id === testObject.id).single.id)
+    testObject.id shouldBe uuidAsId.where(_.id === testObject.id).single.id
 
     testObject.id should equal(
       uuidAsId.where(_.id in List(testObject.id)).single.id
     )
 
     val lookup = uuidAsId.lookup(testObject.id)
-    lookup.get.id should equal(testObject.id)
+    lookup.get.id shouldBe testObject.id
   }
 
   test("UuidAsForeignKey") {

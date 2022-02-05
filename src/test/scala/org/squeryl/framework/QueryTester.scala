@@ -62,7 +62,7 @@ trait QueryTester extends Matchers {
 
     val r = q.toList.map(mapFunc)
 
-    r should equal(expected)
+    r shouldBe expected
 
 //    if(r == expected)
 //      println("query " + name + " passed.")

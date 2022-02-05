@@ -13,9 +13,9 @@ abstract class ConnectionClosingTest extends DbTestBase {
     val stmt = session.connection.prepareStatement(dbSpecificSelectNow)
     val rs = stmt.executeQuery
 
-    session.connection.close
+    session.connection.close()
 
-    stmt.isClosed should equal(false)
-    rs.isClosed should equal(false)
+    stmt.isClosed shouldBe false
+    rs.isClosed shouldBe false
   }
 }

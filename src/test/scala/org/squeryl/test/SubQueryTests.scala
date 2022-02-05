@@ -28,11 +28,11 @@ object SubQueryTestSchema {
   }
 
   object TestSchema extends Schema {
-    val entity = table[Entity]()
-    val entityType = table[EntityToTypeJoins]()
-    val entityEdges = table[EntityEdge]()
+    val entity: Table[Entity] = table[Entity]()
+    val entityType: Table[EntityToTypeJoins] = table[EntityToTypeJoins]()
+    val entityEdges: Table[EntityEdge] = table[EntityEdge]()
 
-    override def drop = {
+    override def drop: Unit = {
       Session.cleanupResources
       super.drop
     }
@@ -45,7 +45,7 @@ abstract class SubQueryTests
   self: DBConnector =>
   import SubQueryTestSchema._
 
-  final def schema = TestSchema
+  final def schema: Schema = TestSchema
 
   test("Missing internal state, cant copy") {
     import TestSchema._
@@ -54,12 +54,9 @@ abstract class SubQueryTests
     val typeName = "mmmm"
     val relType = "owns"
 
-    val nameQuery = from(entity)(e => where(e.name === name) select (e))
-
+    val nameQuery = from(entity)(e => where(e.name === name).select(e))
     val nameQueryId = from(nameQuery)(i => select(i.id))
-    val typeQuery = from(entityType)((eType) =>
-      where(eType.entType === typeName) select (eType.entityId)
-    )
+    val typeQuery = from(entityType)(eType => where(eType.entType === typeName).select(eType.entityId))
 
     val entEdges =
       from(entity, entityEdges)((e, edge) =>

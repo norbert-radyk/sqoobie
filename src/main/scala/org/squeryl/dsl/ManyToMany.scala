@@ -1,8 +1,11 @@
 package org.squeryl.dsl
 
-import org.squeryl.{ForeignKeyDeclaration, Table, Query}
-import collection.mutable.{HashMap, ArrayBuffer}
+import org.squeryl.{ForeignKeyDeclaration, Query, Table}
+
+import collection.mutable.{ArrayBuffer, HashMap}
 import org.squeryl.KeyedEntityDef
+
+import scala.collection.mutable
 
 trait Relation[L, R] {
 
@@ -173,7 +176,7 @@ trait ManyToMany[O, A] extends Query[O] {
 class StatefulManyToMany[O, A](val relation: ManyToMany[O, A])
     extends Iterable[O] {
 
-  private[this] val _map = new HashMap[O, A]
+  private[this] val _map = new mutable.HashMap[O, A]
 
   refresh
 

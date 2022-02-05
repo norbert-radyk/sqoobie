@@ -220,7 +220,7 @@ abstract class MusicDbTestRun
     )
 
   lazy val songsFeaturingPonchoNestedInWhere: Query[Song] =
-    from(songs, artists)((s, a) =>
+    from(songs, artists)((s, _) =>
       where(
         s.interpretId in from(artists)(a =>
           where(a.firstName === "Poncho") select a.id
@@ -300,7 +300,7 @@ abstract class MusicDbTestRun
     ).distinct
 
   def songsFeaturingPonchoNestedInWhereWithString: Query[Song] =
-    from(songs, artists)((s, a) =>
+    from(songs, artists)((s, _) =>
       where(
         s.title in from(songs)(s => where(s.id === 123) select s.title)
       )
@@ -308,12 +308,8 @@ abstract class MusicDbTestRun
         orderBy s.title.asc
     )
 
-  def countCds(cds: Queryable[Cd]): Query[Measures[Long]] =
-    from(cds)(c => compute(count))
-
-  def countCds2(
-      cds: Queryable[Cd]
-  ): PrimitiveTypeModeForTests.ScalarQuery[Long] = cds.Count
+  def countCds(cds: Queryable[Cd]): Query[Measures[Long]] = from(cds)(_ => compute(count))
+  def countCds2(cds: Queryable[Cd]): PrimitiveTypeModeForTests.ScalarQuery[Long] = cds.Count
 
   def avgSongCountForAllArtists: Query[Measures[Option[Double]]] =
     from(
@@ -321,7 +317,7 @@ abstract class MusicDbTestRun
         where(s.authorId === a.id)
           groupBy a.id compute count
       )
-    )((sonCountPerArtist) => compute(avg(sonCountPerArtist.measures)))
+    )(sonCountPerArtist => compute(avg(sonCountPerArtist.measures)))
 
   def assertionFailed(s: String, actual: Any, expected: Any): Assertion =
     assert(
@@ -340,59 +336,6 @@ abstract class MusicDbTestRun
     }
   }
   test("Queries") {
-//  def working = {
-//    val testInstance = sharedTestInstance; import testInstance._
-//
-//    testTimestampPartialUpdate
-//
-//    testAggregateQueryOnRightHandSideOfInOperator
-//
-//    testAggregateComputeInSubQuery
-//
-//    testEnums
-//
-//    val dbAdapter = Session.currentSession.databaseAdapter
-//
-//    testOuterJoinWithSubQuery
-//
-//    testJoinWithCompute
-//
-//    testInTautology
-//
-//    testNotInTautology
-//
-//    testDynamicWhereClause1
-//
-//    testEnums
-//
-//    testTimestamp
-//
-//    testTimestampDownToMillis
-//
-//    testConcatFunc
-//
-//    testRegexFunctionSupport
-//
-//    testUpperAndLowerFuncs
-//
-//    testCustomRegexFunctionSupport
-//
-//
-//
-//    testLoopInNestedInTransaction
-//
-//    testBetweenOperator
-//
-//    if(! dbAdapter.isInstanceOf[MSSQLServer])
-//      testPaginatedQuery1
-//
-//    testDynamicQuery1
-//
-//    testDynamicQuery2
-//
-//    testDeleteVariations
-//
-//    testKeyedEntityImplicitLookup
     val testInstance = sharedTestInstance; import testInstance._
     val q = songCountPerAlbumIdJoinedWithAlbumNested
 
@@ -548,52 +491,6 @@ abstract class MusicDbTestRun
       List(2)
     )
   }
-  /* TODO: REFACTOR Z
-  implicit def sExpr[E <% StringExpression[_]](s: E) = new RegexCall(s)
-
-  class RegexCall(left: StringExpression[_]) {
-
-    def regexC(e: String)  = new BinaryOperatorNodeLogicalBoolean(left, e, "~")
-  }
-
-  test("CustomRegexFunctionSupport"){
-    if(Session.currentSession.databaseAdapter.isInstanceOf[H2Adapter]) {
-
-      val q =
-        from(artists)(a=>
-          where(a.firstName.regexC(".*on.*"))
-          select(a.firstName)
-          orderBy(a.firstName)
-        )
-
-      val testInstance = sharedTestInstance; import testInstance._
-
-      List(mongoSantaMaria.firstName, ponchoSanchez.firstName) shouldBe q.toList
-
-      passed('testCustomRegexFunctionSupport)
-    }
-  }
-
-  test("RegexFunctionSupport"){
-    try {
-      val q =
-        from(artists)(a =>
-          where(a.firstName.regex(".*on.*"))
-          select (a.firstName)
-          orderBy (a.firstName)
-        )
-
-      val testInstance = sharedTestInstance; import testInstance._
-
-      List(mongoSantaMaria.firstName, ponchoSanchez.firstName) shouldBe q.toList
-
-      passed('testRegexFunctionSupport)
-    }
-    catch {
-      case e: UnsupportedOperationException => println("testRegexFunctionSupport: regex not supported by database adapter")
-    }
-  }
-   */
 
   test("UpperAndLowerFuncs") {
     try {
@@ -613,7 +510,7 @@ abstract class MusicDbTestRun
 
       expected shouldBe q.toList
     } catch {
-      case e: UnsupportedOperationException =>
+      case _: UnsupportedOperationException =>
         println(
           "testUpperAndLowerFuncs: regex not supported by database adapter"
         )
@@ -635,11 +532,7 @@ abstract class MusicDbTestRun
           orderBy a.firstName
       )
 
-    val expected =
-      List(mongoSantaMaria.firstName, ponchoSanchez.firstName).map(s =>
-        s + "zozo"
-      )
-
+    val expected = List(mongoSantaMaria.firstName, ponchoSanchez.firstName).map(s => s + "zozo")
     expected shouldBe q.toList
   }
 
@@ -693,7 +586,7 @@ abstract class MusicDbTestRun
 
     val out = artists.where(_.firstName === mongoSantaMaria.firstName).single
 
-    assert(new Timestamp(cal.getTimeInMillis) == out.timeOfLastUpdate)
+    new Timestamp(cal.getTimeInMillis) shouldBe out.timeOfLastUpdate
 
     out
   }
@@ -706,8 +599,7 @@ abstract class MusicDbTestRun
   }
 
   test("TestTimestampImplicit") {
-    val x: Option[Timestamp] =
-      from(artists)(a => compute(min(a.timeOfLastUpdate)))
+    from(artists)(a => compute(min(a.timeOfLastUpdate)))
   }
 
   test("TimestampDownToMillis") {
@@ -768,10 +660,7 @@ abstract class MusicDbTestRun
   }
 
   test("validateScalarQueryConversion1") {
-
-    val d: Option[Double] = avgSongCountForAllArtists
-    // println("d=" + d)
-    assert(d.get == 1.0, "expected " + 1.0 + "got " + d)
+    avgSongCountForAllArtists.get shouldBe 1.0
   }
 
   test("Update1") {
@@ -814,8 +703,7 @@ abstract class MusicDbTestRun
     artistForDelete = artists.insert(new Person("Delete", "Me", None))
 
     val c = artists.deleteWhere(a => a.id === artistForDelete.id)
-
-    assert(c == 1, "deleteWhere failed, expected 1 row delete count, got " + c)
+    c shouldBe 1
 
     assert(
       artists.lookup(artistForDelete.id).isEmpty,
@@ -839,7 +727,6 @@ abstract class MusicDbTestRun
       ).toList.map(s => s.id)
 
     val q = inhibitedArtistsInQuery(true)
-    // println(q.dumpAst)
     val songsInhibited = q.toList.map(s => s.id)
 
     assert(
@@ -870,7 +757,6 @@ abstract class MusicDbTestRun
   test("DynamicQuery2") {
     val testInstance = sharedTestInstance; import testInstance._
     val q = inhibitedSongsInQuery(true)
-    // println(q.dumpAst)
     val t = q.single
     val poncho = t._2
 
@@ -974,12 +860,12 @@ abstract class MusicDbTestRun
   test("Enums with groupBy", SingleTestRun) {
     val allKnownGenres = from(songs)(s => groupBy(s.genre)).map(_.key).toSet
 
-    assert(allKnownGenres == Set(Genre.Jazz, Genre.Latin))
+    allKnownGenres shouldBe Set(Genre.Jazz, Genre.Latin)
 
     val allKnownSecondaryGenres =
       from(songs)(s => groupBy(s.secondaryGenre)).map(_.key).toSet
 
-    assert(allKnownSecondaryGenres == Set(None, Some(Genre.Latin)))
+    allKnownSecondaryGenres shouldBe Set(None, Some(Genre.Latin))
   }
 
   test("Enums Inhibit") {

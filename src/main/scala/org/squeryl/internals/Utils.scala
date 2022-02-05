@@ -106,7 +106,7 @@ class IteratorConcatenation[R](first: Iterator[R], second: Iterator[R])
   def _hasNext: Boolean =
     if (currentIterator.hasNext)
       true
-    else if (currentIterator == second)
+    else if (currentIterator sameElements second)
       false
     else {
       currentIterator = second

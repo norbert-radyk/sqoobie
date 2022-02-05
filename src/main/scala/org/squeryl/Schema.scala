@@ -7,7 +7,8 @@ import org.squeryl.internals._
 import java.io.PrintWriter
 import java.sql.SQLException
 import java.util.regex.Pattern
-import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 class Schema(implicit val fieldMapper: FieldMapper) {
@@ -21,7 +22,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
 
   def tables: collection.Seq[Table[_]] = _tables.toSeq
 
-  private[this] val _tableTypes = new HashMap[Class[_], Table[_]]
+  private[this] val _tableTypes = new mutable.HashMap[Class[_], Table[_]]
 
   private[this] val _oneToManyRelations =
     new ArrayBuffer[OneToManyRelation[_, _]]
@@ -32,7 +33,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
   private[this] val _columnGroupAttributeAssignments =
     new ArrayBuffer[ColumnGroupAttributeAssignment]
 
-  private[squeryl] val _namingScope = new HashSet[String]
+  private[squeryl] val _namingScope = new mutable.HashSet[String]
 
   private[squeryl] def _addRelation(r: OneToManyRelation[_, _]) =
     _oneToManyRelations.append(r)
@@ -40,14 +41,14 @@ class Schema(implicit val fieldMapper: FieldMapper) {
   private[squeryl] def _addRelation(r: ManyToManyRelation[_, _, _]) =
     _manyToManyRelations.append(r)
 
-  private def _dbAdapter = Session.currentSession.databaseAdapter
+  private def dbAdapter = Session.currentSession.databaseAdapter
 
   /** @returns
     *   a tuple of (Table[_], Table[_], ForeignKeyDeclaration) where ._1 is the
     *   foreign key table, ._2 is the primary key table ._3 is the
     *   ForeignKeyDeclaration between _1 and _2
     */
-  private def _activeForeignKeySpecs = {
+  private def activeForeignKeySpecs = {
     val res = new ArrayBuffer[(Table[_], Table[_], ForeignKeyDeclaration)]
 
     for (r <- _oneToManyRelations if r.foreignKeyDeclaration._isActive)
@@ -115,10 +116,10 @@ class Schema(implicit val fieldMapper: FieldMapper) {
     statementHandler("-- table declarations :")
 
     for (t <- _tables) {
-      val sw = new StatementWriter(true, _dbAdapter)
-      _dbAdapter.writeCreateTable(t, sw, this)
+      val sw = new StatementWriter(true, dbAdapter)
+      dbAdapter.writeCreateTable(t, sw, this)
       statementHandler(sw.statement + ";")
-      _dbAdapter.postCreateTable(t, Some(statementHandler))
+      dbAdapter.postCreateTable(t, Some(statementHandler))
 
       val indexDecl = _indexDeclarationsFor(t)
 
@@ -144,7 +145,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
 
     for (cpk <- compositePKs) {
       val createConstraintStmt =
-        _dbAdapter.writeCompositePrimaryKeyConstraint(cpk._1, cpk._2)
+        dbAdapter.writeCompositePrimaryKeyConstraint(cpk._1, cpk._2)
       statementHandler(createConstraintStmt + ";")
     }
 
@@ -164,22 +165,22 @@ class Schema(implicit val fieldMapper: FieldMapper) {
     */
   def drop: Unit = {
 
-    if (_dbAdapter.supportsForeignKeyConstraints)
+    if (dbAdapter.supportsForeignKeyConstraints)
       _dropForeignKeyConstraints
 
     Session.currentSession.connection.createStatement
     Session.currentSession.connection
 
     for (t <- _tables) {
-      _dbAdapter.dropTable(t)
-      _dbAdapter.postDropTable(t)
+      dbAdapter.dropTable(t)
+      dbAdapter.postDropTable(t)
     }
   }
 
   def create: Unit = {
-    _createTables
-    if (_dbAdapter.supportsForeignKeyConstraints)
-      _declareForeignKeyConstraints
+    createTables()
+    if (dbAdapter.supportsForeignKeyConstraints)
+      declareForeignKeyConstraints()
 
     _createConstraintsOfCompositePKs
 
@@ -221,11 +222,11 @@ class Schema(implicit val fieldMapper: FieldMapper) {
       case (None, None) => None
       case (Some(_), None) =>
         Some(
-          _dbAdapter.writeIndexDeclaration(cols, None, name, isUnique = true)
+          dbAdapter.writeIndexDeclaration(cols, None, name, isUnique = true)
         )
       case (None, Some(Indexed(idxName))) =>
         Some(
-          _dbAdapter.writeIndexDeclaration(
+          dbAdapter.writeIndexDeclaration(
             cols,
             idxName,
             name,
@@ -234,7 +235,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
         )
       case (Some(_), Some(Indexed(idxName))) =>
         Some(
-          _dbAdapter.writeIndexDeclaration(cols, idxName, name, isUnique = true)
+          dbAdapter.writeIndexDeclaration(cols, idxName, name, isUnique = true)
         )
     }
   }
@@ -248,7 +249,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
     val cs = Session.currentSession
     val dba = cs.databaseAdapter
 
-    for (fk <- _activeForeignKeySpecs) {
+    for (fk <- activeForeignKeySpecs) {
       cs.connection.createStatement
       dba.dropForeignKeyStatement(
         fk._1,
@@ -258,7 +259,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
     }
   }
 
-  private def _declareForeignKeyConstraints: Unit =
+  private def declareForeignKeyConstraints(): Unit =
     for (fk <- _foreignKeyConstraints)
       _executeDdl(fk)
 
@@ -274,15 +275,15 @@ class Schema(implicit val fieldMapper: FieldMapper) {
       case e: SQLException =>
         throw SquerylSQLException("error executing " + statement + "\n" + e, e)
     } finally {
-      s.close
+      s.close()
     }
   }
 
   private def _foreignKeyConstraints =
-    for (fk <- _activeForeignKeySpecs) yield {
+    for (fk <- activeForeignKeySpecs) yield {
       val fkDecl = fk._3
 
-      _dbAdapter.writeForeignKeyDeclaration(
+      dbAdapter.writeForeignKeyDeclaration(
         fk._1,
         fkDecl.foreignKeyColumnName,
         fk._2,
@@ -293,12 +294,12 @@ class Schema(implicit val fieldMapper: FieldMapper) {
       )
     }
 
-  private def _createTables: Unit = {
+  private def createTables(): Unit = {
     for (t <- _tables) {
-      val sw = new StatementWriter(_dbAdapter)
-      _dbAdapter.writeCreateTable(t, sw, this)
+      val sw = new StatementWriter(dbAdapter)
+      dbAdapter.writeCreateTable(t, sw, this)
       _executeDdl(sw.statement)
-      _dbAdapter.postCreateTable(t, None)
+      dbAdapter.postCreateTable(t, None)
       for (indexDecl <- _indexDeclarationsFor(t))
         _executeDdl(indexDecl)
     }
@@ -307,7 +308,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
   private def _createConstraintsOfCompositePKs: Unit =
     for (cpk <- _allCompositePrimaryKeys) {
       val createConstraintStmt =
-        _dbAdapter.writeCompositePrimaryKeyConstraint(cpk._1, cpk._2)
+        dbAdapter.writeCompositePrimaryKeyConstraint(cpk._1, cpk._2)
       _executeDdl(createConstraintStmt)
     }
 
@@ -480,7 +481,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
             )
         }
       case caa: ColumnAttributeAssignment =>
-        for (ca <- caa.columnAttributes)(caa.left._addColumnAttribute(ca))
+        for (ca <- caa.columnAttributes) caa.left._addColumnAttribute(ca)
 
         // don't allow a KeyedEntity.id field to not have a uniqueness constraint :
         if (ca.isIdFieldOfKeyedEntityWithoutUniquenessConstraint)
@@ -503,7 +504,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
       case caa: ColumnAttributeAssignment =>
         for (
           ca <- caa.columnAttributes if ca
-            .isInstanceOf[AutoIncremented] && !(caa.left.isIdFieldOfKeyedEntity)
+            .isInstanceOf[AutoIncremented] && !caa.left.isIdFieldOfKeyedEntity
         )
           org.squeryl.internals.Utils.throwError(
             "Field " + caa.left.nameOfProperty + " of table " + table.name +
@@ -639,9 +640,9 @@ class Schema(implicit val fieldMapper: FieldMapper) {
     */
   class ActiveRecord[A](a: A, queryDsl: QueryDsl, m: ClassTag[A]) {
 
-    private def _performAction(action: (Table[A]) => Unit) =
-      _tableTypes get (m.runtimeClass) map { (table: Table[_]) =>
-        queryDsl inTransaction (action(table.asInstanceOf[Table[A]]))
+    private def _performAction(action: Table[A] => Unit) =
+      _tableTypes.get(m.runtimeClass).map { (table: Table[_]) =>
+        queryDsl.inTransaction(action(table.asInstanceOf[Table[A]]))
       }
 
     /** Same as {{{table.insert(a)}}}
